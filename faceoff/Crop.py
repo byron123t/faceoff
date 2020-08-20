@@ -1,0 +1,156 @@
+import sys
+import os
+import tensorflow.compat.v1 as tf
+import numpy as np
+from faceoff.dets.DetectFace import create_mtcnn, detect_face
+import scipy.misc as ms
+from PIL import Image
+import imageio
+import cv2
+from faceoff import Config
+
+
+def pre_proc(img, params):
+    """
+    Description
+
+    Keyword arguments:
+    img -- 
+    params -- 
+    """
+    interpolation = params['interpolation']
+    # img: read in by imageio.imread
+    # with shape (x,y,3), in the format of RGB
+            # convert to (3,112,96) with BGR
+    img_resize = cv2.resize(img, (112, 96), interpolation)
+    img_BGR = img_resize[...,::-1]
+    img_CHW = (img_BGR.transpose(2, 0, 1) - 127.5) / 128
+    return img_CHW
+
+
+def crop_face(img, detector):
+    """
+    Description
+
+    Keyword arguments:
+    """
+    # interpolation = params['interpolation']
+    interpolation = cv2.INTER_LINEAR
+    minsize = 20 # minimum size of face
+    threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
+    factor = 0.709 # scale factor
+    margin = 4
+    image_width = 96
+    image_height = 112
+
+    print('Trying to find a bounding box')
+    try:
+        json = detector.detect_faces(img)
+        nrof_faces = len(json)
+    except:
+        print('Error detecting')
+        return None, None
+    if nrof_faces < 1:
+        print('Error, found {} faces'.format(nrof_faces))
+        return None, None
+    dets = []
+    faces = []
+    bounding_boxes = []
+    for i in range(nrof_faces):
+        bounding_boxes.append(json[i]['box'])
+    bounding_boxes = np.array(bounding_boxes)
+    for i in range(nrof_faces):
+        print(bounding_boxes.shape)
+        det = bounding_boxes[i]
+        img_size = np.asarray(img.shape)[0:2]
+        print(det.shape)
+        print(det)
+
+        det = np.squeeze(det)
+        print(det)
+        bb = np.zeros(4, dtype=np.int32)
+        bb[0] = np.maximum(det[0]-margin/2, 0)
+        bb[1] = np.maximum(det[1]-margin/2, 0)
+        bb[2] = np.minimum(det[0]+det[2]+margin/2, img_size[1])
+        bb[3] = np.minimum(det[1]+det[3]+margin/2, img_size[0])
+        cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
+        print(cropped.shape)
+        scaled = cv2.resize(cropped, (image_width, image_height), interpolation)
+        print(scaled.shape)
+
+        scaled = scaled[...,::-1]
+        print(scaled.shape)
+        imageio.imwrite('face.png',scaled)
+        face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)
+        print(face.shape)
+        face = (face-0.5)*2
+        print(face.shape)
+        dets.append(det)
+        faces.append(face)
+    
+    faces = np.array(faces)
+    print(face.shape)
+    
+    return faces, dets
+
+
+def apply_delta(deltas, img, dets, params):
+    """
+    Description
+
+    Keyword arguments:
+    """
+
+    adv_img = img * 1
+    margin = 4
+    img_size = np.asarray(img.shape)[0:2]
+    for delta, det in zip(deltas, dets):
+        bb = np.zeros(4, dtype=np.int32)
+        bb[0] = np.maximum(det[0]-margin/2, 0)
+        bb[1] = np.maximum(det[1]-margin/2, 0)
+        bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+        bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+
+        orig_dim = [bb[3]-bb[1], bb[2]-bb[0]]
+
+        delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), interpolation)
+        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] += delta_up
+        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] = np.maximum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:], 0)
+        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] = np.minimum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:], 1)
+
+    return adv_img
+
+
+def read_face_from_files(file_list, model, interpolation):
+    """
+    Description
+
+    Keyword arguments:
+    """
+    result = []
+    for file_name in file_list:
+        print(file_name)
+        img = imageio.imread(file_name)
+
+        face, _ = crop_face(img, interpolation)
+        result.append(face)
+    result = np.array(result)
+    return result
+
+def read_face_from_aligned(file_list, params):
+    """
+    Description
+
+    Keyword arguments:
+    """
+    result = []
+    print(file_list[0])
+    for file_name in file_list:
+        # print(file_name)
+        face = imageio.imread(file_name)
+        # print(face)
+        face = pre_proc(face, params)
+        # print(face)
+        result.append(face)
+    result = np.array(result)
+    return result

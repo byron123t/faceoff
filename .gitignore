@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+faceoff.egg-info/
+faceoff/dets/
+faceoff/face_model_caffe_converted.h5
+faceoff/lfw/
