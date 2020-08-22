@@ -82,31 +82,31 @@ def crop_face(img, pnet, rnet, onet, outfilename, count):
     return faces, dets, count
 
 
-def apply_delta(deltas, img, dets, params):
+def apply_delta(delta, img, det, params):
     """
     Description
 
     Keyword arguments:
     """
 
-    adv_img = img * 1
     margin = 4
     img_size = np.asarray(img.shape)[0:2]
-    for delta, det in zip(deltas, dets):
-        bb = np.zeros(4, dtype=np.int32)
-        bb[0] = np.maximum(det[0]-margin/2, 0)
-        bb[1] = np.maximum(det[1]-margin/2, 0)
-        bb[2] = np.minimum(det[2]+margin/2, img_size[1])
-        bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+    bb = np.zeros(4, dtype=np.int32)
+    bb[0] = np.maximum(det[0]-margin/2, 0)
+    bb[1] = np.maximum(det[1]-margin/2, 0)
+    bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+    bb[3] = np.minimum(det[3]+margin/2, img_size[0])
 
-        orig_dim = [bb[3]-bb[1], bb[2]-bb[0]]
+    orig_dim = [bb[3]-bb[1], bb[2]-bb[0]]
 
-        delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), interpolation)
-        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] += delta_up
-        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] = np.maximum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:], 0)
-        adv_img[bb[1]:bb[3],bb[0]:bb[2],:] = np.minimum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:], 1)
+    delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), params['interpolation'])
+    print(delta_up.shape)
+    print(img.shape)
+    img[bb[1]:bb[3],bb[0]:bb[2],:] += delta_up
+    img[bb[1]:bb[3],bb[0]:bb[2],:] = np.maximum(img[bb[1]:bb[3],bb[0]:bb[2],:], 0)
+    img[bb[1]:bb[3],bb[0]:bb[2],:] = np.minimum(img[bb[1]:bb[3],bb[0]:bb[2],:], 1)
 
-    return adv_img
+    return img
 
 
 def read_face_from_files(file_list, model, interpolation):

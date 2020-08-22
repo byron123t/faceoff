@@ -1,4 +1,4 @@
-from flask import Flask, flash, request, redirect, url_for, render_template, session, json
+from flask import Flask, flash, request, redirect, url_for, render_template, session, json, send_from_directory
 import requests
 import os
 import secrets
@@ -178,16 +178,19 @@ def select_pert(sess_id=None, selected=None):
                                        norm=norm,
                                        margin=margin,
                                        amplification=amplification)
-        load_images(selected)
-        outer_attack(params=params,
-                     )
+        people = load_images(params=params,
+                             selected=selected,
+                             sess_id=sess_id)
+        orig_files = outer_attack(params=params,
+                                  people=people,
+                                  sess_id=sess_id)
         return redirect(url_for('download', sess_id=sess_id))
 
 
 @app.route('/download/<sess_id>', methods=['GET', 'POST'])
 def download(sess_id=None):
     if request.method == 'GET':
-        return render_template('download.html')
+        return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
     else:
         print(request.form)
-        return redirect(url_for(''))
+        return redirect(url_for('handle_upload'))

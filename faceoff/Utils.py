@@ -7,6 +7,9 @@ import tensorflow as tf
 from faceoff.Crop import *
 from faceoff.Models import get_model
 from tensorflow.keras import backend
+from zipfile import ZipFile
+import io
+from PIL import Image
 
 
 def transpose_back(params,
@@ -33,19 +36,29 @@ def transpose_back(params,
     return adv_new_img, face_new
 
 
-def save_image(file_names,
-               out_img_names,
-               out_img_names_crop,
-               adv_img_stack,
-               adv_crop_stack):
+def save_image(done_imgs,
+               sess_id):
     """
     """
-    for i, name in enumerate(adv_img_stack):
-        if adv_img_stack[i] is not None:
-            file = file_names[i]
-            imageio.imwrite(out_img_names[file], (adv_img_stack[i] * 255).astype(np.uint8))
-            imageio.imwrite(out_img_names_crop[file], (adv_crop_stack[i] * 255).astype(np.uint8))
-
+    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+        for filename, img in done_imgs.items():
+            buf = io.BytesIO()
+            orig = filename.replace(sess_id, '')
+            index = orig.index('.')
+            im = Image.fromarray((img * 255).astype(np.uint8))
+            ext = orig[index:].lower()
+            print(ext)
+            if ext == '.jpg' or ext == 'jpeg':
+                format_type = 'JPEG'
+            elif ext == '.png':
+                format_type = 'PNG'
+            elif ext == '.gif':
+                format_type = 'GIF'
+            else:
+                format_type = 'ERROR'
+            im.save(buf, format_type)
+            zf.writestr(orig, buf.getvalue())
+            print(orig)
 
 
 def face_detection(imgfiles, outfilenames):
@@ -81,18 +94,18 @@ def load_images(params, selected, sess_id):
     """
     print('Loading Images...')
     people = []
-    data = np.load(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'))
+    data = np.load(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'), allow_pickle=True)
     dets = data['dets']
     pairs = data['pairs']
     filenames = data['filenames']
 
     filename_dict = {}
     for file in filenames:
-        for i, val in dets[file].items():
+        d = dets.item()
+        for i, val in d[file].items():
             filename_dict[i] = file
 
-    for lfw, face_matches in pairs.items():
-        target_path = os.path.join(Config.ROOT, params['align_dir'], lfw)
+    for lfw, face_matches in pairs.item().items():
         person = {'base': {}}
         person['base']['index'] = []
         person['base']['filename'] = []
@@ -107,20 +120,23 @@ def load_images(params, selected, sess_id):
             face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
             face = (face-0.5)*2
             img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
+            img = np.around(img / 255.0, decimals=12)
 
             person['base']['index'].append(i)
             person['base']['filename'].append(file)
             person['base']['img'].append(img)
             person['base']['face'].append(face)
-            person['base']['dets'].append(dets[file][i])
+            person['base']['dets'].append(dets.item()[file][i])
 
+        target_path = os.path.join(Config.ROOT, params['align_dir'], lfw)
+        target_files = os.listdir(target_path)
         temp_files = []
         for file in target_files:
             temp_files.append(os.path.join(target_path, file))
         person['target'] = read_face_from_aligned(temp_files, params)
 
         person['base']['face'] = np.squeeze(np.array(person['base']['face']))
-        if len(imgs) <= 1:
+        if len(person['base']['img']) <= 1:
             person['base']['face'] = np.expand_dims(person['base']['face'], axis=0)
         people.append(person)
 
@@ -225,7 +241,7 @@ def face_recognition(faces, threshold, batch_size, tf_config):
 
 
 def match_closest(embeddings):
-    npzfile = np.load(os.path.join(Config.ROOT, 'embeddings/lfw_embeddings.npz'))
+    npzfile = np.load(os.path.join(Config.ROOT, 'embeddings/lfw_embeddings.npz'), allow_pickle=True)
     people = npzfile['people']
     means = npzfile['mean']
     pairs = {}

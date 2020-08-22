@@ -85,18 +85,14 @@ def set_gpu(gpu):
     return tf_config
 
 
-def set_parameters(api_name='',
-                   targeted_flag='true',
+def set_parameters(targeted_flag='true',
                    tv_flag='false',
                    hinge_flag='true',
                    cos_flag='false',
-                   interpolation='nearest',
+                   interpolation='bilinear',
                    model_type='small',
                    loss_type='center',
                    dataset_type='vgg',
-                   target_model='small',
-                   target_loss='center',
-                   target_dataset='vgg',
                    attack='CW',
                    norm='2',
                    epsilon=0.1,
@@ -108,19 +104,13 @@ def set_parameters(api_name='',
                    mean_loss='embeddingmean',
                    batch_size=-1,
                    margin=5.0,
-                   amplification=2.0,
-                   granularity='single',
-                   whitebox_target=False,
-                   pair_flag='false'):
+                   amplification=2.0):
     """Creates and returns a dictionary of parameters."""
     params = {}
 
     params['model_type'] = model_type
     params['loss_type'] = loss_type
     params['dataset_type'] = dataset_type
-    params['target_model'] = target_model
-    params['target_loss'] = target_loss
-    params['target_dataset'] = target_dataset
     params['attack'] = attack
     params['norm'] = norm
     params['epsilon'] = epsilon
@@ -131,15 +121,12 @@ def set_parameters(api_name='',
     params['init_const'] = init_const
     params['mean_loss'] = mean_loss
     params['batch_size'] = batch_size
-    params['test_dir'] = TEST_DIR
-    params['full_dir'] = FULL_DIR
-    params['whitebox_target'] = whitebox_target
     params['targeted_flag'] = string_to_bool(targeted_flag)
     params['tv_flag'] = string_to_bool(tv_flag)
     params['hinge_flag'] = string_to_bool(hinge_flag)
     params['cos_flag'] = string_to_bool(cos_flag)
-    params['pair_flag'] = string_to_bool(pair_flag)
-    params['api_name'] = api_name
+    params['margin'] = margin
+    params['amp'] = amplification
 
     if model_type == 'small' and loss_type == 'center':
         params['pixel_max'] = 1.0
@@ -148,7 +135,7 @@ def set_parameters(api_name='',
         params['pixel_max'] = 1.0
         params['pixel_min'] = 0.0
 
-    if (dataset_type == 'vggsmall' and not whitebox_target) or True:
+    if (dataset_type == 'vggsmall'):
         params['align_dir'] = VGG_ALIGN_160_DIR
         params['test_dir'] = VGG_TEST_DIR
     elif model_type == 'large' or dataset_type == 'casia':
@@ -170,36 +157,6 @@ def set_parameters(api_name='',
         print('finish later')
     else:
         raise ValueError('ValueError: Argument must be of the following, [nearest, bilinear, bicubic, lanczos, super].')
-
-    if granularity == 'fine':
-        params['margin_list'] = np.arange(0.0, margin, margin / 20.0)
-        params['amp_list'] = np.arange(1.0, amplification, 0.2)
-    elif granularity == 'normal':
-        params['margin_list'] = np.arange(0.0, margin, margin / 10.0)
-        params['amp_list'] = np.arange(1.0, amplification, 0.5)
-    elif granularity == 'coarse':
-        params['margin_list'] = np.arange(0.0, margin, margin / 5.0)
-        params['amp_list'] = np.arange(1.0, amplification, 1.0)
-    elif granularity == 'coarser':
-        params['margin_list'] = np.arange(0.0, margin, margin / 3.0)
-        params['amp_list'] = np.arange(1.0, amplification, 0.2)
-    elif granularity == 'coarsest':
-        params['margin_list'] = np.arange(0.0, margin, margin / 3.0)
-        params['amp_list'] = np.arange(1.0, amplification, 1.0)
-    elif granularity == 'single':
-        params['margin_list'] = np.array([margin])
-        params['amp_list'] = np.array([amplification])
-    elif granularity == 'fine-tuned':
-        params['margin_list'] = np.arange(10.0, margin, 1.0)
-        params['amp_list'] = np.arange(1.0, amplification, 0.2)
-    elif granularity == 'coarse-single':
-        params['margin_list'] = np.arange(0.0, margin, margin / 3.0)
-        params['amp_list'] = np.array([1.0])
-    elif granularity == 'api-eval':
-        params['margin_list'] = np.arange(0.0, margin, margin / 3.0)
-        params['amp_list'] = np.arange(1.0, amplification, 0.4)
-    else:
-        raise ValueError('ValueError: Argument must be of the following, [fine, normal, coarse, coarser, single].')
 
     if params['hinge_flag']:
         params['attack_loss'] = 'hinge'
@@ -223,32 +180,6 @@ def set_parameters(api_name='',
     params['model_name'] = '{}_{}'.format(model_type, loss_type)
     if dataset_type == 'casia' or dataset_type == 'vggsmall':
         params['model_name'] = dataset_type
-    params['target_model_name'] = '{}_{}_{}'.format(target_model, target_loss, target_dataset)
     params['attack_name'] = '{}_l{}{}{}'.format(attack.lower(), norm_name, tv_name, cos_name)
-    params['directory_path'] = os.path.join(ROOT,
-                                            OUT_DIR,
-                                            params['attack_name'],
-                                            params['model_name'],
-                                            '{}_loss/full'.format(params['attack_loss']))
-    params['directory_path_crop'] = os.path.join(ROOT,
-                                                 OUT_DIR,
-                                                 params['attack_name'],
-                                                 params['model_name'],
-                                                 '{}_loss/crop'.format(params['attack_loss']))
-    params['directory_path_npz'] = os.path.join(ROOT,
-                                                OUT_DIR,
-                                                params['attack_name'],
-                                                params['model_name'],
-                                                '{}_loss/npz'.format(params['attack_loss']))
-    params['api_path'] = os.path.join(ROOT,
-                                      API_DIR,
-                                      params['attack_name'],
-                                      params['model_name'],
-                                      '{}_loss/npz'.format(params['attack_loss']))
-    if params['mean_loss'] == 'embedding':
-        params['directory_path'] += '_mean'
-        params['directory_path_crop'] += '_mean'
-        params['directory_path_npz'] += '_mean'
-        params['api_path'] += '_mean'
 
     return params
