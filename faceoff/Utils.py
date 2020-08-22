@@ -1,12 +1,12 @@
 import imageio
 import numpy as np 
 import os
+import math
 from faceoff import Config
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 from faceoff.Crop import *
 from faceoff.Models import get_model
-from mtcnn import MTCNN
-from keras import backend
+from tensorflow.keras import backend
 
 
 def transpose_back(params,
@@ -48,76 +48,83 @@ def save_image(file_names,
 
 
 
-def face_detection(imgfiles):
+def face_detection(imgfiles, outfilenames):
+    filenames = []
     imgs = []
     dets = []
     base_faces = []
-    detector = MTCNN()
+    count = 0
+    with tf.Graph().as_default():
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
+        with sess.as_default():
+            pnet, rnet, onet = create_mtcnn(sess, None)
 
-    for img in imgfiles:
-        face, det = crop_face(img, detector)
+    for i, img in enumerate(imgfiles):
+        face, det, count = crop_face(img, pnet, rnet, onet, outfilenames[i], count)
         if face is not None:
             for f, d in zip(face, det):
                 img = np.around(img / 255.0, decimals=12)
                 base_faces.append(f)
                 imgs.append(img)
                 dets.append(d)
+                filenames.append(outfilenames[i])
 
     faces = np.squeeze(np.array(base_faces))
     if len(imgs) <= 1:
         faces = np.expand_dims(faces, axis=0)
 
-    return faces, imgs, dets
+    return faces, filenames, imgs, dets
 
-def load_images_old(params, source, target):
+def load_images(params, selected, sess_id):
     """
     """
     print('Loading Images...')
-    faces = {'base': {}, 'source': {}, 'target': {}}
-    file_names = []
-    imgs = []
-    dets = []
-    base_faces = []
-        
-    base_path = os.path.join(Config.ROOT, params['test_dir'], source)
-    source_path = os.path.join(Config.ROOT, params['align_dir'], source)
-    target_path = os.path.join(Config.ROOT, params['align_dir'], target)
+    people = []
+    data = np.load(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'))
+    dets = data['dets']
+    pairs = data['pairs']
+    filenames = data['filenames']
 
-    base_files = os.listdir(base_path)
-    source_files = os.listdir(source_path)
-    target_files = os.listdir(target_path)
+    filename_dict = {}
+    for file in filenames:
+        for i, val in dets[file].items():
+            filename_dict[i] = file
 
-    with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
-        with sess.as_default():
-            pnet, rnet, onet = create_mtcnn(sess, None)
-    for file in base_files:
-        img = imageio.imread(os.path.join(base_path, file))
-        print(file)
-        face, det = crop_face(img, params, pnet, rnet, onet)
-        if face is not None:
-            img = np.around(img / 255.0, decimals=12)
-            file_names.append(file)
-            base_faces.append(np.array([face]))
-            imgs.append(img)
-            dets.append(det)
+    for lfw, face_matches in pairs.items():
+        target_path = os.path.join(Config.ROOT, params['align_dir'], lfw)
+        person = {'base': {}}
+        person['base']['index'] = []
+        person['base']['filename'] = []
+        person['base']['img'] = []
+        person['base']['face'] = []
+        person['base']['dets'] = []
 
-    temp_files = []
-    for file in source_files:
-        temp_files.append(os.path.join(source_path, file))
-    faces['source'] = read_face_from_aligned(temp_files, params)
+        for i in face_matches:
+            file = filename_dict[i]
+            index = file.index('.')
+            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], i)))
+            face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
+            face = (face-0.5)*2
+            img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
 
-    temp_files = []
-    for file in target_files:
-        temp_files.append(os.path.join(target_path, file))
-    faces['target'] = read_face_from_aligned(temp_files, params)
+            person['base']['index'].append(i)
+            person['base']['filename'].append(file)
+            person['base']['img'].append(img)
+            person['base']['face'].append(face)
+            person['base']['dets'].append(dets[file][i])
 
-    faces['base'] = np.squeeze(np.array(base_faces))
-    if len(imgs) <= 1:
-        faces['base'] = np.expand_dims(faces['base'], axis=0)
+        temp_files = []
+        for file in target_files:
+            temp_files.append(os.path.join(target_path, file))
+        person['target'] = read_face_from_aligned(temp_files, params)
 
-    return faces, file_names, imgs, dets
+        person['base']['face'] = np.squeeze(np.array(person['base']['face']))
+        if len(imgs) <= 1:
+            person['base']['face'] = np.expand_dims(person['base']['face'], axis=0)
+        people.append(person)
+
+    return people
 
 
 class Evaluate:
@@ -127,18 +134,18 @@ class Evaluate:
         height = fr_model.image_height
         width = fr_model.image_width
         channels = fr_model.num_channels
-        shape = (batch_size, channels, height, width)
+        shape = (batch_size, channels, width, height)
         self.input_tensor = tf.placeholder(tf.float32, shape)
         self.embedding = fr_model.predict(self.input_tensor)
         self.batch_size = shape[0]
 
 
 def compute_distance(person1, person2):
-    cos_sim = np.dot(person1, person2) / (np.linalg.norm(person1) * np.linalg.norm(person2))
+    # cos_sim = np.dot(person1, person2) / (np.linalg.norm(person1) * np.linalg.norm(person2))
     distance = np.linalg.norm(person1 - person2)
-    cos_sim = np.arccos(cos_sim) / math.pi * 60
-    avg = (distance + cos_sim) / 2
-    return avg
+    # cos_sim = np.arccos(cos_sim) / math.pi * 60
+    # avg = (distance + cos_sim) / 2
+    return distance
 
 
 def compute_embeddings(tf_config, batch_size, faces):
@@ -147,50 +154,72 @@ def compute_embeddings(tf_config, batch_size, faces):
     with tf.Session(config=tf_config) as sess:
         fr_model = get_model()
         eval = Evaluate(fr_model=fr_model, batch_size=batch_size)
-        embeddings = []
-        for p, person in enumerate(faces):
-            embeddings.append(sess.run(eval.embedding, feed_dict={eval.input_tensor: np.expand_dims(person, axis=0)}))
+        cur_embeddings = []
+        sub_batch = -len(faces)
+        for i in range(0, len(faces), batch_size):
+            cur_batch = len(faces) - i
+            cur_imgs = faces[i:i+eval.batch_size]
+            if eval.batch_size > cur_batch:
+                sub_batch = eval.batch_size - cur_batch
+                cur_imgs = np.pad(cur_imgs, ((0,sub_batch),(0,0),(0,0),(0,0)))
+            cur_embeddings.extend(sess.run(eval.embedding, feed_dict={eval.input_tensor: cur_imgs}))
+        embeddings = np.array(cur_embeddings[:-sub_batch])
     return embeddings
 
 
-def match(buckets, count, p1, p2):
-    found = False
-    for key, val in buckets.items():
-        if p1 in val or p2 in val:
-            if p1 not in val:
-                buckets[key].append(p1)
-                found = True
-            if p2 not in val:
-                buckets[key].append(p2)
-                found = True
-            if found:
-                break
-            else:
-                return buckets, count
-    if not found:
-        count += 1
-        buckets[count] = [p1, p2]
-    return buckets, count
+def add_bucket(buckets, p1, p2):
+    if p1 in buckets:
+        if p2 not in buckets[p1]:
+            buckets[p1].append(p2)
+    else:
+        buckets[p1] = [p2]
+    return buckets
+
+
+def match_buckets(buckets, embeddings):
+    people = {}
+    means = {}
+    done = []
+    count = 0
+    for person, neighbors in buckets.items():
+        if person not in done:
+            people[count] = [embeddings[person]]
+            for f in neighbors:
+                people[count].append(embeddings[f])
+            means[count] = np.mean(people[count], axis=0)
+            done.extend(neighbors)
+            done.append(person)
+            count += 1
+    return people, means
 
 
 def face_recognition(faces, threshold, batch_size, tf_config):
     embeddings = compute_embeddings(tf_config, batch_size, faces)
-    buckets = {0:[]}
+    buckets = {}
     means = {}
-    count = 0
-
+    done = {}
     for p1, person1 in enumerate(embeddings):
         for p2, person2 in enumerate(embeddings):
             if p1 != p2:
-                avg = compute_distance(person1, person2)
-                if avg <= threshold:
-                    buckets, count = match(buckets, count, p1, p2)
+                if p1 not in done or p2 not in done[p1] or p1 not in done[p2]:
+                    if p1 not in done:
+                        done[p1] = [p2]
+                    else:
+                        done[p1].append(p2)
+                    if p2 not in done:
+                        done[p2] = [p1]
+                    else:
+                        done[p2].append(p1)
 
-    for key, val in buckets.items():
-        person_embedding = []
-        for i in val:
-            person_embedding.append(embeddings[i])
-        means[key] = np.mean(person_embedding, axis=0)
+                    avg = compute_distance(person1, person2)
+                    print(avg, threshold)
+                    if avg <= threshold:
+                        buckets = add_bucket(buckets, p1, p2)
+                        buckets = add_bucket(buckets, p2, p1)
+                    else:
+                        buckets[p1] = []
+                        buckets[p2] = []
+    people, means = match_buckets(buckets, embeddings)
 
     return embeddings, buckets, means
 

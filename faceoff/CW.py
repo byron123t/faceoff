@@ -6,7 +6,7 @@
 ## contained in the LICENCE file in this directory.
 
 import sys, math
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 from faceoff.TVLoss import get_tv_loss
 from cleverhans.compat import reduce_sum, reduce_max

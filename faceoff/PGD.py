@@ -8,7 +8,7 @@ import collections
 
 import cleverhans.utils as utils
 from cleverhans.model import Model, CallableModelWrapper
-from attacks.tv_loss import get_tv_loss
+from faceoff.TVLoss import get_tv_loss
 from cleverhans.utils_tf import clip_eta
 
 _logger = utils.create_logger("cleverhans.attacks")

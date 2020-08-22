@@ -5,9 +5,9 @@ jQuery(document).ready(function($) {
     nav: true,
     dots: true,
     items: 1,
-    loop: true,
+    loop: false,
     navText: ["&#xe605","&#xe606"],
-    autoplay: true,
+    autoplay: false,
     autoplayTimeout: 4000
   });
 
@@ -28,9 +28,9 @@ jQuery(document).ready(function($) {
         items: 4
       }
     },
-    loop: true,
+    loop: false,
     navText: ["&#xe605","&#xe606"],
-    autoplay: true,
+    autoplay: false,
     autoplayTimeout: 5000
   });
   
@@ -51,9 +51,9 @@ jQuery(document).ready(function($) {
         items: 4
       }
     },
-    loop: true,
+    loop: false,
     navText: ["&#xe605","&#xe606"],
-    autoplay: true,
+    autoplay: false,
     autoplayTimeout: 5000
   });  
   
@@ -62,9 +62,9 @@ jQuery(document).ready(function($) {
     nav: true,
     dots: true,
     items: 1,
-    loop: true,
+    loop: false,
     navText: ["&#xe605","&#xe606"],
-    autoplay: true,
+    autoplay: false,
     animateOut: 'fadeOut',
     autoplayTimeout: 4000
   }); 

@@ -1,12 +1,12 @@
 import numpy as np
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 from faceoff import Config
 from faceoff.CW import CW
 from faceoff.PGD import PGD
 from faceoff.Models import get_model
 from faceoff.Crop import apply_delta
-from faceoff.Utils import set_bounds, transpose_back, initialize_dict, populate_dict
-from faceoff.Utils import save_image, save_np, load_images, load_images_old, return_write_path
+from faceoff.Utils import transpose_back
+from faceoff.Utils import save_image
 import argparse
 from keras import backend
 
@@ -26,8 +26,13 @@ def amplify(params,
     adv_crop_stack = []
     adv_img_stack = []
     delta_clip_stack = []
+    prev = None
+    prev_adv = None
     for i, f in enumerate(face):
         if delta[i] is not None:
+            if imgs[i] == prev:
+                use_img = prev_adv
+            
             cur_delta = delta[i] * amp
             cur_face = face[i]
             
@@ -41,9 +46,9 @@ def amplify(params,
 
             delta_clip = adv_crop - temp_face
             if len(delta_clip.shape) == 3:
-                adv_img = apply_delta(delta_clip, 1, imgs[i], dets[i], params)  ## BEWARE!!!!!!! of not squaring the amplification
+                adv_img = apply_delta(delta_clip, 1, use_img, dets[i], params)  ## BEWARE!!!!!!! of not squaring the amplification
             else:
-                adv_img = apply_delta(delta_clip[0], 1, imgs[i], dets[i], params)  ## BEWARE!!!!!!! of not squaring the amplification
+                adv_img = apply_delta(delta_clip[0], 1, use_img, dets[i], params)  ## BEWARE!!!!!!! of not squaring the amplification
             if len(delta_clip.shape) != 3:
                 adv_crop_stack.append(adv_crop[0])
                 delta_clip_stack.append(delta_clip[0])
@@ -51,6 +56,8 @@ def amplify(params,
                 adv_crop_stack.append(adv_crop)
                 delta_clip_stack.append(delta_clip)
             adv_img_stack.append(adv_img)
+            prev = imgs[i]
+            prev_adv = adv_img
         else:
             adv_crop_stack.append(None)
             adv_img_stack.append(None)
@@ -182,114 +189,5 @@ def outer_attack(params,
                        out_img_names_crop = crop_path,
                        adv_img_stack = adv_img_stack,
                        adv_crop_stack = adv_crop_stack)
-            adv_crop_dict, delta_clip_dict, adv_img_dict = populate_dict(file_names = file_names,
-                                                                         adv_crop_dict = adv_crop_dict,
-                                                                         adv_crop_stack = adv_crop_stack,
-                                                                         delta_clip_dict = delta_clip_dict,
-                                                                         delta_clip_stack = delta_clip_stack,
-                                                                         adv_img_dict = adv_img_dict,
-                                                                         adv_img_stack = adv_img_stack)
+
         Config.BM.mark('Amplifying and Writing Images')
-
-        Config.BM.mark('Saving Numpy Array')
-        save_np(out_npz_names = npz_path,
-                adv_crop_dict = adv_crop_dict,
-                delta_clip_dict = delta_clip_dict,
-                adv_img_dict = adv_img_dict)
-        Config.BM.mark('Saving Numpy Array')
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', type=str, default="0", help='GPU(s) to run the code on')
-    parser.add_argument('--attack', type=str, default='CW', help='attack type',choices=['PGD', 'CW'])
-    parser.add_argument('--norm', type=str, default='2', help='p-norm', choices=['inf', '2'])
-    parser.add_argument('--targeted-flag', type=str, default='true', help='targeted (true) or untargeted (false)', choices=['true', 'false'])
-    parser.add_argument('--tv-flag', type=str, default='false', help='do not use tv_loss term (false) or use it (true)', choices=['true', 'false'])
-    parser.add_argument('--hinge-flag', type=str, default='true', help='hinge loss (true) or target loss (false)', choices=['true', 'false'])
-    parser.add_argument('--epsilon', type=float, default=0.1, help='epsilon value needed for PGD')
-    parser.add_argument('--margin', type=float, default=6.0, help='needed for determining goodness of transferability')
-    parser.add_argument('--amplification', type=float, default=5.1, help='needed for amplifying adversarial examples')
-    parser.add_argument('--iterations', type=int, default=20, help='number of inner step iterations for CW and number of iterations for PGD')
-    parser.add_argument('--binary-steps', type=int, default=5, help='number of binary search steps for CW')
-    parser.add_argument('--learning-rate', type=float, default=0.01, help='learning rate for CW')
-    parser.add_argument('--epsilon-steps', type=float, default=0.01, help='epsilon per iteration for PGD')
-    parser.add_argument('--init-const', type=float, default=0.3, help='initial const value for CW')
-    parser.add_argument('--interpolation', type=str, default='bilinear', help='interpolation method for upscaling and downscaling', choices=['nearest', 'bilinear', 'bicubic', 'lanczos'])
-    parser.add_argument('--granularity', type=str, default='normal', help='add more or less margin and amplification intervals', choices=['fine-tuned', 'fine', 'normal', 'coarse', 'coarser', 'coarse-single', 'single'])
-    parser.add_argument('--cos-flag', type=str, default='false', help='use cosine similarity instead of l2 for loss', choices=['true', 'false'])
-    parser.add_argument('--mean-loss', type=str, default='embeddingmean', help='old chuhan:(embedding) new formulation:(embeddingmean) WIP formulation:(distancemean)', choices=['embeddingmean', 'embedding', 'distancemean'])
-    parser.add_argument('--batch-size', type=int, default=-1, help='batch size')
-    parser.add_argument('--pair-flag', type=str, default='false', help='optimal source target pairs')
-    parser.add_argument('--source', type=str, default='none', help='', choices=['barack', 'bill', 'jenn', 'leo', 'mark', 'matt', 'melania', 'meryl', 'morgan', 'taylor', 'none'])
-    parser.add_argument('--iteration-flag', type=str, default='false', help='', choices=['false', 'true'])
-    args = parser.parse_args()
-    
-    tf_config = Config.set_gpu(args.gpu)
-    params = Config.set_parameters(targeted_flag=args.targeted_flag,
-                                   tv_flag='false',
-                                   hinge_flag=args.hinge_flag,
-                                   cos_flag='false',
-                                   interpolation=args.interpolation,
-                                   model_type='small',
-                                   loss_type='center',
-                                   dataset_type='vgg',
-                                   attack=args.attack,
-                                   norm=args.norm,
-                                   epsilon=args.epsilon,
-                                   iterations=args.iterations,
-                                   binary_steps=args.binary_steps,
-                                   learning_rate=args.learning_rate,
-                                   epsilon_steps=args.epsilon_steps,
-                                   init_const=args.init_const,
-                                   mean_loss=args.mean_loss,
-                                   batch_size=args.batch_size,
-                                   margin=args.margin,
-                                   amplification=args.amplification,
-                                   granularity=args.granularity,
-                                   pair_flag=args.pair_flag,
-                                   iteration_flag=args.iteration_flag)
-    
-    if params['dataset_type'] == 'vggsmall' or True:
-        # faces, file_names, imgs, dets = load_images(params=params, dir_names=Config.SOURCES)
-        for i, s in enumerate(Config.SOURCES):
-            faces, file_names, imgs, dets = load_images_old(params=params, source=Config.SOURCES[i], target=Config.TARGETS[i])
-            faces['source'] = faces['source'][:64]
-            faces['target'] = faces['target'][:64]
-            outer_attack(params=params,
-                         faces=faces,
-                         file_names=file_names,
-                         source=Config.SOURCES[i],
-                         target=Config.TARGETS[i],
-                         tf_config=tf_config,
-                         imgs=imgs,
-                         dets=dets)
-    else:
-        # faces, file_names, imgs, dets = load_images(params=params, dir_names=Config.NAMES)
-        if args.source == 'none':
-            for source in Config.NAMES:
-                for target in Config.NAMES:
-                    # if source is not target and target == Config.PAIRS[source]:
-                    if (target != source and 
-                        (target == Config.PAIRS[source] or not params['pair_flag'])):
-                        faces, file_names, imgs, dets = load_images_old(params=params, source=source, target=target)
-                        outer_attack(params=params,
-                                     faces=faces,
-                                     file_names=file_names,
-                                     source=source,
-                                     target=target,
-                                     tf_config=tf_config,
-                                     imgs=imgs,
-                                     dets=dets)
-        else:
-            for target in Config.NAMES:
-                if (target != args.source and 
-                    (target == Config.PAIRS[args.source] or not params['pair_flag'])):
-                    faces, file_names, imgs, dets = load_images_old(params=params, source=args.source, target=target)
-                    outer_attack(params=params,
-                                 faces=faces,
-                                 file_names=file_names,
-                                 source=args.source,
-                                 target=target,
-                                 tf_config=tf_config,
-                                 imgs=imgs,
-                                 dets=dets)

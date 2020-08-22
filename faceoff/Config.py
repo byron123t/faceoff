@@ -1,5 +1,5 @@
 import os, cv2
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 from timeit import default_timer as timer
 
@@ -36,21 +36,14 @@ class Benchmark:
             self.start[message] = -1
             self.end[message] = -1
 
-
 S3_DIR = 'https://s3.amazonaws.com/797qjz1donyyji5r4n'
 S3_BUCKET = '797qjz1donyyji5r4n'
 ROOT = os.path.abspath('./faceoff')
-# ALIGN_96_DIR = 'celebrities-96'
-# ALIGN_160_DIR = 'celebrities-160'
-# ALIGN_96_DIR = 'celeb96'
-# ALIGN_160_DIR = 'celeb160'
-ALIGN_96_DIR = 'half_celeb96'
+ALIGN_96_DIR = 'lfw/lfw-aligned-96'
 ALIGN_160_DIR = 'half_celeb160'
-# VGG_ALIGN_160_DIR = 'small-vgg-align-train-160'
+VGG_ALIGN_160_DIR = 'small-vgg-align-train-160'
 VGG_VALIDATION_DIR = 'small-vgg-align-validate'
-VGG_ALIGN_160_DIR = 'small-vgg-align-validate'
 TEST_DIR = 'test_imgs'
-# FULL_DIR = 'celeb'
 FULL_DIR = 'half_celeb'
 VGG_TEST_DIR = 'test_imgs/VGG'
 OUT_DIR = 'new_adv_imgs'
@@ -61,37 +54,15 @@ VGGSMALL_MODEL_PATH = 'weights/small_facenet_center.h5'
 VGGADV_MODEL_PATH = 'weights/facenet_vggsmall.h5'
 CENTER_MODEL_PATH = 'weights/facenet_keras_center_weights.h5'
 TRIPLET_MODEL_PATH = 'weights/facenet_keras_weights.h5'
+UPLOAD_FOLDER = os.path.join(os.path.abspath('.'), 'static', 'temp')
+
 NAMES = ['barack', 'bill', 'jenn', 'leo', 'mark', 'matt', 'melania', 'meryl',
          'morgan', 'taylor']
 API_PEOPLE = ['barack', 'leo', 'matt', 'melania', 'morgan', 'taylor']
 PAIRS = {'barack': 'morgan', 'mark': 'bill', 'matt': 'bill', 'taylor': 'jenn',
          'melania': 'jenn', 'jenn': 'melania', 'bill': 'barack', 'morgan':
          'bill', 'leo': 'bill', 'meryl': 'jenn'}
-# PAIRS = {'matt': 'leo'}
-# SOURCES=['n000636', 'n001370', 'n001513', 'n002140', 'n002537', 'n004534',
-#          'n005374', 'n005789', 'n006421', 'n007862', 'n001000', 'n001374',
-#          'n001632', 'n002222', 'n003222', 'n005081', 'n005674', 'n005877',
-#          'n007092', 'n007892', 'n001100', 'n001421', 'n001638', 'n002513',
-#          'n003242', 'n005089', 'n005677', 'n006220', 'n007562', 'n008638',
-#          'n001270', 'n001431', 'n001892', 'n002531', 'n003542', 'n005140',
-#          'n005760', 'n006221', 'n007634', 'n009000', 'n001292', 'n001433',
-#          'n002100', 'n002533', 'n003562', 'n005160', 'n005780', 'n006270',
-#          'n007638', 'n009270']
-# TARGETS=['n009000', 'n001292', 'n001433', 'n002100', 'n002533', 'n003562',
-#          'n005160', 'n005780', 'n006270', 'n007638', 'n009270', 'n001892',
-#          'n002531', 'n003542', 'n005140', 'n005760', 'n006221', 'n007634',
-#          'n003242', 'n005089', 'n005677', 'n006220', 'n007562', 'n008638',
-#          'n001270', 'n001431', 'n001374', 'n001632', 'n002222', 'n003222',
-#          'n005081', 'n005674', 'n005877', 'n007092', 'n007892', 'n001100',
-#          'n001421', 'n001638', 'n002513', 'n000636', 'n001370', 'n001513',
-#          'n002140', 'n002537', 'n004534', 'n005374', 'n005789', 'n006421',
-#          'n007862', 'n001000']
-SOURCES=['n000082', 'n001302', 'n001976', 'n004240', 'n005137', 'n007368',
-         'n008989', 'n009294', 'n001174', 'n001836', 'n003430', 'n004449',
-         'n007261', 'n008932', 'n009225']
-TARGETS=['n009225', 'n008932', 'n007261', 'n004449', 'n003430', 'n001836',
-         'n001174', 'n009294', 'n008989', 'n007368', 'n005137', 'n004240',
-         'n001976', 'n001302', 'n000082']
+
 BM = Benchmark()
 
 
@@ -120,28 +91,27 @@ def set_parameters(api_name='',
                    hinge_flag='true',
                    cos_flag='false',
                    interpolation='nearest',
-                   model_type='large',
-                   loss_type='triplet',
+                   model_type='small',
+                   loss_type='center',
                    dataset_type='vgg',
-                   target_model='large',
+                   target_model='small',
                    target_loss='center',
-                   target_dataset='VGG',
+                   target_dataset='vgg',
                    attack='CW',
                    norm='2',
                    epsilon=0.1,
-                   iterations=20,
-                   binary_steps=5,
+                   iterations=200,
+                   binary_steps=8,
                    learning_rate=0.01,
                    epsilon_steps=0.01,
                    init_const=0.3,
                    mean_loss='embeddingmean',
                    batch_size=-1,
-                   margin=15.0,
-                   amplification=6.0,
-                   granularity='normal',
+                   margin=5.0,
+                   amplification=2.0,
+                   granularity='single',
                    whitebox_target=False,
-                   pair_flag='false',
-                   iteration_flag='false'):
+                   pair_flag='false'):
     """Creates and returns a dictionary of parameters."""
     params = {}
 
@@ -170,7 +140,6 @@ def set_parameters(api_name='',
     params['cos_flag'] = string_to_bool(cos_flag)
     params['pair_flag'] = string_to_bool(pair_flag)
     params['api_name'] = api_name
-    params['iteration_flag'] = string_to_bool(iteration_flag)
 
     if model_type == 'small' and loss_type == 'center':
         params['pixel_max'] = 1.0

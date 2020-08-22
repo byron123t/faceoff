@@ -1,6 +1,6 @@
 import sys
 import os
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import numpy as np
 from faceoff.dets.DetectFace import create_mtcnn, detect_face
 import scipy.misc as ms
@@ -28,7 +28,7 @@ def pre_proc(img, params):
     return img_CHW
 
 
-def crop_face(img, detector):
+def crop_face(img, pnet, rnet, onet, outfilename, count):
     """
     Description
 
@@ -45,8 +45,8 @@ def crop_face(img, detector):
 
     print('Trying to find a bounding box')
     try:
-        json = detector.detect_faces(img)
-        nrof_faces = len(json)
+        bounding_boxes, _ = detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
+        nrof_faces = bounding_boxes.shape[0]
     except:
         print('Error detecting')
         return None, None
@@ -55,43 +55,31 @@ def crop_face(img, detector):
         return None, None
     dets = []
     faces = []
-    bounding_boxes = []
     for i in range(nrof_faces):
-        bounding_boxes.append(json[i]['box'])
-    bounding_boxes = np.array(bounding_boxes)
-    for i in range(nrof_faces):
-        print(bounding_boxes.shape)
         det = bounding_boxes[i]
         img_size = np.asarray(img.shape)[0:2]
-        print(det.shape)
-        print(det)
 
-        det = np.squeeze(det)
-        print(det)
         bb = np.zeros(4, dtype=np.int32)
         bb[0] = np.maximum(det[0]-margin/2, 0)
         bb[1] = np.maximum(det[1]-margin/2, 0)
-        bb[2] = np.minimum(det[0]+det[2]+margin/2, img_size[1])
-        bb[3] = np.minimum(det[1]+det[3]+margin/2, img_size[0])
+        bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+        bb[3] = np.minimum(det[3]+margin/2, img_size[0])
         cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
-        print(cropped.shape)
-        scaled = cv2.resize(cropped, (image_width, image_height), interpolation)
-        print(scaled.shape)
-
+        scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
         scaled = scaled[...,::-1]
-        print(scaled.shape)
-        imageio.imwrite('face.png',scaled)
+        index = outfilename.index('.')
+        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(outfilename[:index], count)),scaled)
+        count += 1
+        
         face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)
-        print(face.shape)
         face = (face-0.5)*2
-        print(face.shape)
         dets.append(det)
         faces.append(face)
     
     faces = np.array(faces)
     print(face.shape)
     
-    return faces, dets
+    return faces, dets, count
 
 
 def apply_delta(deltas, img, dets, params):

@@ -73,12 +73,13 @@
                     <div class="line">
                       <div class="s-12 m-12 l-3 center">
                         <a class="button button-white-stroke s-12" href="#thing">Get Started Now</a>
-                        <form id="upload-form" enctype="multipart/form-data" action="" method="POST">
-                          <!-- <input id="image-file" type="file" name="file" accept="image/png,image/jpeg,image/jpg" value="files" multiple> -->
+                        <form id="upload-img" enctype="multipart/form-data" action="" method="POST">
                           <label class="button button-white-stroke s-12">
-                            Select Images <input id="image-file" type="file" name="file" accept="image/png,image/jpeg,image/jpg" hidden multiple>
+                            <!-- Select Images <input id="image-file" type="file" name="file" accept="image/png,image/jpeg,image/jpg" hidden multiple> -->
+                            {{form.csrf_token}}
+                            {{form.photo}}
                           </label>
-                          <button id="upload-btn" class="button button-white-stroke s-12">
+                          <button id="upload-img-btn" class="button button-white-stroke s-12">
                             Upload
                           </button>
                         </form>
@@ -94,7 +95,7 @@
           </div>              
         </div>               
       </header>
-      
+
       <!-- Section 1 -->
       <section class="section-small-padding background-white text-center"> 
         <div class="line">
