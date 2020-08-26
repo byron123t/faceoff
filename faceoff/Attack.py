@@ -94,6 +94,7 @@ def find_adv(sess,
         best_const = []
         best_adv = []
         best_delta = []
+        print(face.shape)
         if params['batch_size'] <= 0:
             batch_size = num_base
         else:
@@ -138,31 +139,31 @@ def outer_attack(params,
     tf_config = Config.set_gpu('0')
     done_imgs = {}
     for person in people:
-        backend.clear_session()
-        tf.reset_default_graph()
-        with tf.Session(config=tf_config) as sess:
-            Config.BM.mark('Model Loaded')
-            fr_model = get_model()
-            Config.BM.mark('Model Loaded')
+        if len(person['base']['face']) > 0:
+            backend.clear_session()
+            tf.reset_default_graph()
+            with tf.Session(config=tf_config) as sess:
+                Config.BM.mark('Model Loaded')
+                fr_model = get_model()
+                Config.BM.mark('Model Loaded')
 
-            Config.BM.mark('Adversarial Example Generation')
-            adv, delta, lp, const = find_adv(sess,
-                                             params=params, 
-                                             fr_model=fr_model,
-                                             face=person['base']['face'], 
-                                             face_stack_source=person['base']['face'],
-                                             face_stack_target=person['target'],
-                                             margin=params['margin'])
-            Config.BM.mark('Adversarial Example Generation')
+                Config.BM.mark('Adversarial Example Generation')
+                adv, delta, lp, const = find_adv(sess,
+                                                 params=params,
+                                                 fr_model=fr_model,
+                                                 face=person['base']['face'],
+                                                 face_stack_source=person['base']['source'],
+                                                 face_stack_target=person['target'],
+                                                 margin=params['margin'])
+                Config.BM.mark('Adversarial Example Generation')
 
-        Config.BM.mark('Amplifying and Writing Images')
-        done_imgs = amplify(params=params,
+            done_imgs = amplify(params=params,
                                 face=person['base']['face'],
                                 delta=delta,
                                 amp=params['amp'],
                                 person=person,
                                 done_imgs=done_imgs)
-        save_image(done_imgs=done_imgs,
-                   sess_id=sess_id)
+    save_image(done_imgs=done_imgs,
+               sess_id=sess_id)
 
-        Config.BM.mark('Amplifying and Writing Images')
+            

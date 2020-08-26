@@ -48,7 +48,7 @@ def save_image(done_imgs,
             im = Image.fromarray((img * 255).astype(np.uint8))
             ext = orig[index:].lower()
             print(ext)
-            if ext == '.jpg' or ext == 'jpeg':
+            if ext == '.jpg' or ext == '.jpeg':
                 format_type = 'JPEG'
             elif ext == '.png':
                 format_type = 'PNG'
@@ -98,22 +98,22 @@ def load_images(params, selected, sess_id):
     dets = data['dets']
     pairs = data['pairs']
     filenames = data['filenames']
-
     filename_dict = {}
     for file in filenames:
         d = dets.item()
         for i, val in d[file].items():
             filename_dict[i] = file
-
-    for lfw, face_matches in pairs.item().items():
+    print(filename_dict)
+    for key, face_matches in pairs.item().items():
+        print(face_matches)
         person = {'base': {}}
         person['base']['index'] = []
         person['base']['filename'] = []
         person['base']['img'] = []
         person['base']['face'] = []
+        person['base']['source'] = []
         person['base']['dets'] = []
-
-        for i in face_matches:
+        for i in face_matches['faces']:
             file = filename_dict[i]
             index = file.index('.')
             face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], i)))
@@ -122,23 +122,33 @@ def load_images(params, selected, sess_id):
             img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
             img = np.around(img / 255.0, decimals=12)
 
-            person['base']['index'].append(i)
-            person['base']['filename'].append(file)
-            person['base']['img'].append(img)
-            person['base']['face'].append(face)
-            person['base']['dets'].append(dets.item()[file][i])
+            if i in selected:
+                print(selected, i)
+                person['base']['face'].append(face)
+                person['base']['index'].append(i)
+                person['base']['filename'].append(file)
+                person['base']['img'].append(img)
+                person['base']['source'].append(face)
+                person['base']['dets'].append(dets.item()[file][i])
 
-        target_path = os.path.join(Config.ROOT, params['align_dir'], lfw)
-        target_files = os.listdir(target_path)
-        temp_files = []
-        for file in target_files:
-            temp_files.append(os.path.join(target_path, file))
-        person['target'] = read_face_from_aligned(temp_files, params)
+        if len(person['base']['face']) > 0:
+            print(face_matches)
+            print(len(person['base']['face']))
+            target_path = os.path.join(Config.ROOT, params['align_dir'], face_matches['pair'])
+            target_files = os.listdir(target_path)
+            temp_files = []
+            for file in target_files:
+                temp_files.append(os.path.join(target_path, file))
+            person['target'] = read_face_from_aligned(temp_files[:8], params)
 
-        person['base']['face'] = np.squeeze(np.array(person['base']['face']))
-        if len(person['base']['img']) <= 1:
-            person['base']['face'] = np.expand_dims(person['base']['face'], axis=0)
-        people.append(person)
+            person['base']['face'] = np.squeeze(np.array(person['base']['face']))
+            if len(person['base']['face'].shape) <= 3:
+                person['base']['face'] = np.expand_dims(person['base']['face'], axis=0)
+            print(person['base']['face'].shape)
+            person['base']['source'] = np.squeeze(np.array(person['base']['source']))
+            if len(person['base']['source'].shape) <= 3:
+                person['base']['source'] = np.expand_dims(person['base']['source'], axis=0)
+            people.append(person)
 
     return people
 
@@ -194,18 +204,48 @@ def add_bucket(buckets, p1, p2):
 
 def match_buckets(buckets, embeddings):
     people = {}
+    new_bucket = {}
     means = {}
     done = []
     count = 0
     for person, neighbors in buckets.items():
         if person not in done:
             people[count] = [embeddings[person]]
+            new_bucket[count] = [person]
             for f in neighbors:
-                people[count].append(embeddings[f])
+                people[count].append(f)
+                new_bucket[count].append(f)
             means[count] = np.mean(people[count], axis=0)
             done.extend(neighbors)
             done.append(person)
             count += 1
+    return new_bucket, means
+
+
+def bfs(buckets, size, embeddings):
+    visited = [False] * size
+    count = 0
+    queue = []
+    people = {}
+    means = {}
+    for k, v in buckets.items():
+        if not visited[k]:
+            queue.append(k)
+            visited[k] = True
+            people[count] = []
+            while queue:
+                cur = queue.pop(0)
+                people[count].append(cur)
+                for i in buckets[cur]:
+                    if not visited[i]:
+                        queue.append(i)
+                        visited[i] = True
+            count += 1
+    for person, face in people.items():
+        embed = []
+        for i in face:
+            embed.append(embeddings[i])
+        means[person] = np.mean(embed, axis=0)
     return people, means
 
 
@@ -213,31 +253,24 @@ def face_recognition(faces, threshold, batch_size, tf_config):
     embeddings = compute_embeddings(tf_config, batch_size, faces)
     buckets = {}
     means = {}
-    done = {}
+    done = []
     for p1, person1 in enumerate(embeddings):
         for p2, person2 in enumerate(embeddings):
-            if p1 != p2:
-                if p1 not in done or p2 not in done[p1] or p1 not in done[p2]:
-                    if p1 not in done:
-                        done[p1] = [p2]
-                    else:
-                        done[p1].append(p2)
-                    if p2 not in done:
-                        done[p2] = [p1]
-                    else:
-                        done[p2].append(p1)
-
-                    avg = compute_distance(person1, person2)
-                    print(avg, threshold)
-                    if avg <= threshold:
-                        buckets = add_bucket(buckets, p1, p2)
-                        buckets = add_bucket(buckets, p2, p1)
-                    else:
+            if p1 != p2 and p2 not in done:
+                avg = compute_distance(person1, person2)
+                if avg <= threshold:
+                    print(avg, threshold, p1, p2)
+                    buckets = add_bucket(buckets, p1, p2)
+                    buckets = add_bucket(buckets, p2, p1)
+                    print(buckets)
+                else:
+                    if p1 not in buckets:
                         buckets[p1] = []
-                        buckets[p2] = []
-    people, means = match_buckets(buckets, embeddings)
-
-    return embeddings, buckets, means
+        done.append(p1)
+    print(buckets)
+    people, means = bfs(buckets, len(embeddings), embeddings)
+    print(people)
+    return embeddings, people, means
 
 
 def match_closest(embeddings):

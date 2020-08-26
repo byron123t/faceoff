@@ -11,20 +11,25 @@ from faceoff import Config
 from faceoff.Attack import outer_attack
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
-from flask_wtf import FlaskForm
+from flask_wtf import FlaskForm, RecaptchaField
 from datetime import timedelta
 
 
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_bytes(16)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
+app.config['RECAPTCHA_PUBLIC_KEY'] = RECAPTCHA_PUBLIC_KEY
+app.config['RECAPTCHA_PRIVATE_KEY'] = RECAPTCHA_PRIVATE_KEY
 
 
 class DetectFormBase(FlaskForm):
@@ -43,7 +48,7 @@ def file_list_form_builder(length):
 
 class PhotoForm(FlaskForm):
     photo = MultipleFileField('images')
-
+    recaptcha = RecaptchaField()
 
 class PertForm(FlaskForm):
     perts = RadioField('perts', choices=['more', 'some', 'less'])
@@ -85,12 +90,11 @@ def handle_upload(name=None):
         print(faces.shape)
         print(len(dets))
         print(len(imgs))
-        embeddings, buckets, means = face_recognition(faces, 15.463615, 10, tf_config)
+        embeddings, buckets, means = face_recognition(faces, 13, 10, tf_config)
         pairs = match_closest(means)
         lfw_pairs = {}
         for key, val in pairs.items():
-            lfw_pairs[val] = buckets[key]
-            lfw_pairs[val].append(key)
+            lfw_pairs[key] = {'pair': val, 'faces': buckets[key]}
         print(pairs)
         print(buckets)
         filedets = {}
@@ -114,12 +118,13 @@ def handle_upload(name=None):
 
 @app.route('/detected_faces/<filedets>/<filedims>/<sess_id>', methods=['GET', 'POST'])
 def detected_faces(filedets=None, filedims=None, sess_id=None):
+    count = 0
     if filedets is not None:
         filedets = json.loads(filedets)
     if filedims is not None:
         filedims = json.loads(filedims)
     for key, val in filedets.items():
-        count = int(max(val.keys()))
+        count += len(val.keys())
         print(count)
     form = file_list_form_builder(count)
     if request.method == 'GET':
@@ -130,8 +135,9 @@ def detected_faces(filedets=None, filedims=None, sess_id=None):
             print(fieldname, value)
         selected = []
         for key, val in request.form.items():
-            if val == 'on':
-                selected.append(key.replace('customSwitch', ''))
+            print(val)
+            if val == 'y':
+                selected.append(int(key.replace('customSwitch', '')))
         return redirect(url_for('select_pert', sess_id=sess_id, selected=selected))
 
 
@@ -179,7 +185,7 @@ def select_pert(sess_id=None, selected=None):
                                        margin=margin,
                                        amplification=amplification)
         people = load_images(params=params,
-                             selected=selected,
+                             selected=json.loads(selected),
                              sess_id=sess_id)
         orig_files = outer_attack(params=params,
                                   people=people,
