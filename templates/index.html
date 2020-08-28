@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="en-US" style="overflow: hidden">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,7 +24,7 @@
       <!-- Top Navigation -->
       <nav class="background-transparent background-transparent-hightlight full-width sticky">
         <div class="s-12 l-2">
-          <a href="index.html" class="logo">
+          <a href="/" class="logo">
             <!-- Logo White Version -->
             <img class="logo-white" src="{{ url_for('static', filename='img/logo.png') }}" alt="">
             <!-- Logo Dark Version -->
@@ -34,8 +34,8 @@
         <div class="top-nav s-12 l-10">
           <p class="nav-text"></p>
           <ul class="right chevron">
-            <li><a href="index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
+            <li><a href="/">Home</a></li>
+<!--             <li><a href="products.html">Products</a></li>
             <li><a>Services</a>
               <ul>
                 <li><a>Service 1</a>
@@ -49,7 +49,7 @@
             </li>
             <li><a href="about.html">About</a></li>
             <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li>
+            <li><a href="contact.html">Contact</a></li> -->
           </ul>
         </div>
       </nav>
@@ -59,27 +59,30 @@
     <main role="main">    
       <!-- Main Header -->
       <header>
-        <div class="carousel-default owl-carousel carousel-main carousel-nav-white background-dark text-center">
-          <div class="item">
+        <!-- <div class="carousel-default owl-carousel carousel-main carousel-nav-white background-dark text-center"> -->
+          <!-- <div class="item"> -->
             <div class="s-12">
-              <img src="{{ url_for('static', filename='img/header.jpg') }}" alt="">
+              <img src="{{ url_for('static', filename='img/header4-8.jpg') }}" style="object-fit: cover;" alt="">
               <div class="carousel-content">
                 <div class="content-center-vertical line">
                   <div class="margin-top-bottom-80">
                     <!-- Title -->
-                    <h1 class="text-white margin-bottom-30 text-size-60 text-m-size-30 text-line-height-1">Face-Off</h1>
-                    <div class="s-12 m-10 l-8 center"><p class="text-white text-size-14 margin-bottom-40">Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis. Iriure dolor in hendrerit duis autem vel eum in vulputate velit esse molestie consequat.</p></div>
+                    <h1 class="text-white text-center margin-bottom-30 text-size-60 text-m-size-30 text-line-height-1">Face-Off</h1>
+                    <div class="s-12 m-10 l-8 text-center center"><p class="text-white text-size-14 margin-bottom-40">Protect your face data with state of the art machine learning privacy research!<br/>Face-Off hides your face from face recognition algorithms.</p></div>
                     <div class="line">
                       <div class="s-12 m-12 l-3 center">
                         <form id="upload-img" enctype="multipart/form-data" action="" method="POST">
                           <label class="button button-white-stroke s-12">
                             <!-- Select Images <input id="image-file" type="file" name="file" accept="image/png,image/jpeg,image/jpg" hidden multiple> -->
                             {{form.csrf_token}}
-                            {{form.photo}}
+                            Select Images{{form.photo(hidden="true")}}
                           </label>
                           <button id="upload-img-btn" class="button button-white-stroke s-12">
                             Upload
                           </button>
+                          <p class="text-center text-white" id="file-counter">0 files selected</p>
+                          <br/>
+                          {{form.recaptcha}}
                         </form>
                       </div>       
                     </div>  
@@ -87,12 +90,12 @@
                 </div>
               </div>
             </div>
-          </div>              
-        </div>               
+          <!-- </div>               -->
+        <!-- </div>                -->
       </header>
       
       <!-- Section 1 -->
-      <section class="section">
+<!--       <section class="section">
         <div class="line">
           <h2 class="text-size-50 text-center">About Us</h2>
           <hr class="break-small background-primary break-center">
@@ -110,10 +113,10 @@
             </div>
           </div>
         </div>    
-      </section>
+      </section> -->
       
       <!-- Section 3 -->
-      <section class="section background-white" >  
+<!--       <section class="section background-white" >  
         <div class="line">
           <h2 class="text-size-50 text-center">Our Stats</h2>
           <hr class="break-small background-primary break-center">
@@ -152,10 +155,10 @@
             </div> 
           </div>
         </div>
-      </section>
+      </section> -->
       
       <!-- Section 5 -->    
-      <section class="section background-white text-center">
+<!--       <section class="section background-white text-center">
         <div class="line">
           <h2 class="text-size-50 text-center">The Team</h2>
           <hr class="break-small background-primary break-center">
@@ -184,14 +187,12 @@
           </div>
         </div>
       </section>
-    </main>
+    </main> -->
     
     <!-- FOOTER -->
-    <footer>
+<!--     <footer>
       
-      <!-- Main Footer -->
       <section class="background-dark full-width">
-        <!-- Map -->
         <div class="s-8 m-8 l-4 margin-m-bottom-2x">
             <div class="padding-2x">
             <div class="float-left">
@@ -218,7 +219,6 @@
             </div>
           </div>
         </div>
-        <!-- Collumn 2 -->
         <div class="s-8 m-8 l-4 margin-m-bottom-2x">
           <div class="padding-2x">
             <div class="float-left">
@@ -236,7 +236,6 @@
       </section>
       <hr class="break margin-top-bottom-0" style="border-color: rgba(0, 38, 51, 0.80);">
       
-      <!-- Bottom Footer -->
       <section class="padding background-dark full-width">
         <div class="s-12 l-6">
           <p class="text-size-12">Copyright 2019, Vision Design - graphic zoo</p>
@@ -245,7 +244,7 @@
           <a class="right text-size-12" href="http://www.myresponsee.com" title="Responsee - lightweight responsive framework">Design and coding<br> by Responsee Team</a>
         </div>
       </section>
-    </footer>
+    </footer> -->
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>

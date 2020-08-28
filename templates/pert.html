@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="en-US" style="overflow: hidden">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,13 +17,13 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/upload.js') }}"></script> 
   </head>
   
-  <body class="size-1140">
+  <body class="size-1140" style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover; background-repeat: no-repeat;">
     <!-- HEADER -->
     <header role="banner" class="position-absolute">    
       <!-- Top Navigation -->
       <nav class="background-transparent background-transparent-hightlight full-width sticky">
         <div class="s-12 l-2">
-          <a href="index.html" class="logo">
+          <a href="/" class="logo">
             <!-- Logo White Version -->
             <img class="logo-white" src="{{ url_for('static', filename='img/logo.png') }}" alt="">
             <!-- Logo Dark Version -->
@@ -33,8 +33,8 @@
         <div class="top-nav s-12 l-10">
           <p class="nav-text"></p>
           <ul class="right chevron">
-            <li><a href="index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
+            <li><a href="/">Home</a></li>
+<!--             <li><a href="products.html">Products</a></li>
             <li><a>Services</a>
               <ul>
                 <li><a>Service 1</a>
@@ -48,7 +48,7 @@
             </li>
             <li><a href="about.html">About</a></li>
             <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li>
+            <li><a href="contact.html">Contact</a></li> -->
           </ul>
         </div>
       </nav>
@@ -57,107 +57,30 @@
     <!-- MAIN -->
     <main role="main">    
       <!-- Section 1 -->
-      <section class="section-small-padding background-white text-center"> 
+      <section class="section-small-padding text-center"> 
         <form id="upload-pert" enctype="multipart/form-data" action="" method="POST">
           {{form.csrf_token}}
           <div class="line">
-            <div class="margin">
-              {% for subfield in form.attacks %}
-              <div class="s-12 m-12 l-4 margin-m-bottom">
-                <div class="padding-2x block-bordered">
-                  <img src="{{ url_for('static', filename=att_file[loop.index-1]) }}" alt="">
-                  <h2 class="text-thin">{{ att_desc['desc1'][loop.index-1] }}<br/>{{ att_desc['desc2'][loop.index-1] }}</h2>
-                  <label class="button button-dark-stroke s-12">
-                    <!-- SELECT<input type="radio" id="cwli" name="attack" value="cwli"> -->
-                    SELECT
-                    {{subfield}}
-                  </label>
-                </div>
-              </div>
-              {% endfor %}
+            <div class="margin-top-bottom-60">
+              <div class="slide-container">
+                {{ form.attacks(min=0, max=1, id='attack-slide', extra_classes='slider', oninput='attackUpdate(value)', style='width;') }}
+               <h2 class="text-thin text-white text-center" id="attack-display">Slow (~50s / unique face) - Smaller Distortion</h2>
+             </div>
             </div>
             <div class="margin">
-              {% for subfield in form.perts %}
-              <div class="s-12 m-12 l-4 margin-m-bottom">
-                <div class="padding-2x block-bordered">
-                  <img src="{{ url_for('static', filename=per_file[loop.index-1]) }}" alt="">
-                  <h2 class="text-thin">{{ per_desc['desc1'][loop.index-1] }}<br/>{{ per_desc['desc2'][loop.index-1] }}</h2>
-                  <label class="button button-dark-stroke s-12">
-                    <!-- SELECT<input type="radio" id="more" name="pert" value="more"> -->
-                    SELECT
-                    {{subfield}}
-                  </label>
-                </div>
-              </div>
-              {% endfor %}
+              <div class="slide-container">
+                {{ form.perts(min=0, max=4, id='pert-slide', extra_classes='slider', oninput='pertUpdate(value)', style='width:40%;') }}
+               <h2 class="text-thin text-white text-center" id="pert-display">Some Distortion - Some Privacy</h2>
+             </div>
             </div>
           </div>
         </form>
-        <button id="upload-pert-btn" class="button button-dark-stroke s-12">
-          Accept
-        </button>
-      </section>
-
-    <!-- FOOTER -->
-    <footer>
-      
-      <!-- Main Footer -->
-      <section class="background-dark full-width">
-        <!-- Map -->
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-            <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-location-pin text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70 margin-bottom-30">
-              <h3 class="margin-bottom-0">Company Address</h3>
-              <p>Responsive Street 7<br>
-                 London / United Kingdom / Europe
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-          <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-envelope text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70 margin-bottom-30">
-              <h3 class="margin-bottom-0">E-mail</h3>
-              <p>contact@sampledomain.com<br>
-                 office@sampledomain.com
-              </p>
-            </div>
-          </div>
-        </div>
-        <!-- Collumn 2 -->
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-          <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-phone text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70">
-              <h3 class="margin-bottom-0">Phone Numbers</h3>
-              <p>0800 4521 800 50<br>
-                 0450 5896 625 16<br>
-                 0798 6546 465 15
-              </p>             
-            </div>
-          </div>
-        </div>  
-      </section>
-      <hr class="break margin-top-bottom-0" style="border-color: rgba(0, 38, 51, 0.80);">
-      
-      <!-- Bottom Footer -->
-      <section class="padding background-dark full-width">
-        <div class="s-12 l-6">
-          <p class="text-size-12">Copyright 2019, Vision Design - graphic zoo</p>
-        </div>
-        <div class="s-12 l-6">
-          <a class="right text-size-12" href="http://www.myresponsee.com" title="Responsee - lightweight responsive framework">Design and coding<br> by Responsee Team</a>
+        <div class="s-12 m-12 l-3 center">
+          <button id="upload-pert-btn" class="button button-white-stroke s-12 margin-top-bottom-10">
+            Accept
+          </button>
         </div>
       </section>
-    </footer>
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>

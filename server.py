@@ -11,8 +11,12 @@ from faceoff import Config
 from faceoff.Attack import outer_attack
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
+from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField
 from datetime import timedelta
+from functools import partial
+from multiprocessing import Pool, Manager, Value
+from zipfile import ZipFile
 
 
 ROOT = os.path.abspath('.')
@@ -50,9 +54,10 @@ class PhotoForm(FlaskForm):
     photo = MultipleFileField('images')
     recaptcha = RecaptchaField()
 
+
 class PertForm(FlaskForm):
-    perts = RadioField('perts', choices=['more', 'some', 'less'])
-    attacks = RadioField('attacks', choices=['cwli', 'cwl2', 'pgdl2'])
+    perts = IntegerRangeField('perts', default=2)
+    attacks = IntegerRangeField('attacks', default=0)
 
 
 def allowed_file(filename):
@@ -63,6 +68,7 @@ def allowed_file(filename):
 @app.route('/', methods=['GET', 'POST'])
 def handle_upload(name=None):
     form = PhotoForm()
+    sess_id = str(uuid4())
     if request.method == 'POST':
         if form.is_submitted():
             print(form.photo.data)
@@ -73,7 +79,6 @@ def handle_upload(name=None):
                 filename = secure_filename(file.filename)
                 if file and allowed_file(filename):
                     index = filename.index('.')
-                    sess_id = str(uuid4())
                     outfile = filename[:index] + sess_id + filename[index:]
                     outfilenames.append(outfile)
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
@@ -84,12 +89,26 @@ def handle_upload(name=None):
             print('No selected file', flush=True)
             flash('No selected file')
             return redirect(request.url)
+        with Pool(processes=4) as pool:
+            func = partial(face_detection, imgfiles, outfilenames)
+            results = pool.map(func, (range(len(imgfiles))))
+        base_faces = []
+        filenames = []
+        imgs = []
+        dets = []
+        counts = []
+        for i, val in enumerate(results):
+            base_faces.extend(val[0])
+            filenames.extend(val[1])
+            imgs.extend(val[2])
+            dets.extend(val[3])
+            for j in range(val[4]):
+                counts.append(j)
 
+        faces = np.squeeze(np.array(base_faces))
+        if len(imgs) <= 1:
+            faces = np.expand_dims(faces, axis=0)
         tf_config = Config.set_gpu('0')
-        faces, filenames, imgs, dets = face_detection(imgfiles, outfilenames)
-        print(faces.shape)
-        print(len(dets))
-        print(len(imgs))
         embeddings, buckets, means = face_recognition(faces, 13, 10, tf_config)
         pairs = match_closest(means)
         lfw_pairs = {}
@@ -110,15 +129,21 @@ def handle_upload(name=None):
             count += 1
         print(filedets)
         print(filedims)
-        np.savez(os.path.join(app.config['UPLOAD_FOLDER'], sess_id + 'data.npz'), pairs=lfw_pairs, dets=filedets, filenames=filenames)
-        return redirect(url_for('detected_faces', filedets=json.dumps(filedets), filedims=json.dumps(filedims), sess_id=sess_id))
+        np.savez(os.path.join(app.config['UPLOAD_FOLDER'], sess_id + 'data.npz'), pairs=lfw_pairs, dets=filedets, filenames=filenames, counts=counts)
+        session['filedets'] = json.dumps(filedets)
+        session['filedims'] = json.dumps(filedims)
+        session['sess_id'] = sess_id
+        return redirect(url_for('detected_faces'))
     else:
         return render_template('index.html', name=name, form=form)
 
 
-@app.route('/detected_faces/<filedets>/<filedims>/<sess_id>', methods=['GET', 'POST'])
-def detected_faces(filedets=None, filedims=None, sess_id=None):
+@app.route('/detected_faces', methods=['GET', 'POST'])
+def detected_faces():
     count = 0
+    filedets = session['filedets']
+    filedims = session['filedims']
+
     if filedets is not None:
         filedets = json.loads(filedets)
     if filedims is not None:
@@ -127,6 +152,7 @@ def detected_faces(filedets=None, filedims=None, sess_id=None):
         count += len(val.keys())
         print(count)
     form = file_list_form_builder(count)
+    print(filedets)
     if request.method == 'GET':
         return render_template('detect.html', filedets=filedets, filedims=filedims, form=form)
     else:
@@ -138,11 +164,14 @@ def detected_faces(filedets=None, filedims=None, sess_id=None):
             print(val)
             if val == 'y':
                 selected.append(int(key.replace('customSwitch', '')))
-        return redirect(url_for('select_pert', sess_id=sess_id, selected=selected))
+        session['selected'] = selected
+        return redirect(url_for('select_pert'))
 
 
-@app.route('/select_pert/<sess_id>/<selected>', methods=['GET', 'POST'])
-def select_pert(sess_id=None, selected=None):
+@app.route('/select_pert', methods=['GET', 'POST'])
+def select_pert():
+    sess_id = session['sess_id']
+    selected = session['selected']
     form = PertForm()
     att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
                 'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
@@ -158,43 +187,49 @@ def select_pert(sess_id=None, selected=None):
         print(form.attacks.data)
         attk = form.attacks.data
         pert = form.perts.data
-        if attk == 'cwl2':
+        if attk == 0:
             attack = 'CW'
             norm = 2
-        elif attk == 'cwli':
-            attack = 'CW'
-            norm = 'inf'
-        elif attk == 'pgdl2':
+        elif attk == 1:
             attack = 'PGD'
             norm = 2
         else:
             print('error')
-        if pert == 'more':
+        if pert == 0:
+            margin = 5
+            amplification = 5
+        elif pert == 1:
+            margin = 5
+            amplification = 4.5
+        elif pert == 2:
             margin = 5
             amplification = 4
-        elif pert == 'some':
-            margin = 3
-            amplification = 2
-        elif pert == 'less':
-            margin = 2
-            amplification = 1.5
+        elif pert == 3:
+            margin = 5
+            amplification = 3.5
+        elif pert == 4:
+            margin = 5
+            amplification = 3
         else:
             print('error')
         params = Config.set_parameters(attack=attack,
                                        norm=norm,
                                        margin=margin,
                                        amplification=amplification)
+        print(selected)
         people = load_images(params=params,
-                             selected=json.loads(selected),
+                             selected=selected,
                              sess_id=sess_id)
-        orig_files = outer_attack(params=params,
-                                  people=people,
-                                  sess_id=sess_id)
-        return redirect(url_for('download', sess_id=sess_id))
+        zf = ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w')
+        with Pool(processes=4) as pool:
+            func = partial(outer_attack, params, people, sess_id, zf)
+            pool.map(func, (range(len(people))))
+        return redirect(url_for('download'))
 
 
-@app.route('/download/<sess_id>', methods=['GET', 'POST'])
-def download(sess_id=None):
+@app.route('/download', methods=['GET', 'POST'])
+def download():
+    sess_id = session['sess_id']
     if request.method == 'GET':
         return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
     else:

@@ -144,3 +144,25 @@ $(window).on('resize', function(){
             });
         }
 })});
+
+var attack_steps = [
+    "Slow (~50s / unique face) - Smaller Distortion",
+    "Quick (~10s / unique face) - Larger Distortion",
+];
+
+var pert_steps = [
+    "Heavy Distortion - Most Privacy",
+    "More Distortion - More Privacy",
+    "Some Distortion - Some Privacy",
+    "Less Distortion - Less Privacy",
+    "Light Distortion - Least Privacy",
+];
+
+
+function attackUpdate(value) {
+    $('#attack-display').html(attack_steps[value]);
+}
+
+function pertUpdate(value) {
+    $('#pert-display').html(pert_steps[value]);
+}

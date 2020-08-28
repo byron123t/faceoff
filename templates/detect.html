@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="en-US" style="overflow: hidden">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,15 +17,15 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/upload.js') }}"></script> 
   </head>
   
-  <body class="size-1140">
+  <body class="size-1140"  style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover; background-repeat: no-repeat;">
     <!-- PREMIUM FEATURES BUTTON -->
     <a target="_blank" class="hide-s" href="../template/eleganter-premium-responsive-business-template/" style="position:fixed;top:120px;right:-14px;z-index:10;"><img src="{{ url_for('static', filename='img/premium-features.png') }}" alt=""></a>
     <!-- HEADER -->
-    <header role="banner" class="position-absolute">    
+    <header role="banner" class="position-absolute">
       <!-- Top Navigation -->
       <nav class="background-transparent background-transparent-hightlight full-width sticky">
         <div class="s-12 l-2">
-          <a href="index.html" class="logo">
+          <a href="/" class="logo">
             <!-- Logo White Version -->
             <img class="logo-white" src="{{ url_for('static', filename='img/logo.png') }}" alt="">
             <!-- Logo Dark Version -->
@@ -35,8 +35,8 @@
         <div class="top-nav s-12 l-10">
           <p class="nav-text"></p>
           <ul class="right chevron">
-            <li><a href="index.html">Home</a></li>
-            <li><a href="products.html">Products</a></li>
+            <li><a href="/">Home</a></li>
+<!--             <li><a href="products.html">Products</a></li>
             <li><a>Services</a>
               <ul>
                 <li><a>Service 1</a>
@@ -50,7 +50,7 @@
             </li>
             <li><a href="about.html">About</a></li>
             <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li>
+            <li><a href="contact.html">Contact</a></li> -->
           </ul>
         </div>
       </nav>
@@ -60,99 +60,37 @@
     <main role="main">    
 
       <!-- Section 5 -->    
-      <section class="section background-white text-center">
-        <div class="line">
-          <h2 class="text-size-50 text-center">Testimonials</h2>
+      <section class="section text-center">
+          <h2 class="text-size-50 text-center text-white">Select Faces to Hide</h2>
           <hr class="break-small background-primary break-center">
-          <div class="carousel-default owl-carousel carousel-wide-arrows">
-            {% for file, dets in filedets.items() %}
-            <div class="item">
-              <div class="s-12 m-12 l-7 center text-center">
-              <form id="upload-det" enctype="multipart/form-data" action="" method="POST">
-                {{form.csrf_token}}
-                <span style="position:relative">
-                  <img class="image-testimonial-small" src="{{ url_for('static', filename='temp/'+file) }}" alt="">
-                  {% for b, box in dets.items() %}
-                  <label class="button button-white-stroke s-12" style="position:absolute; top:{{box[1]}}px; height:{{box[3]-box[1]}}px; left:{{box[0]-filedims[file]['width']/2}}px; width:{{box[2]-box[0]}}px">
-                    {{form|attr("customSwitch{}".format(b))(class_="face-check", onclick="unselect(this)", id=b)}}
-                  </label>
-                  {% endfor %}
-                </span>
-              </form>
-              </div>
+          <form id="upload-det" enctype="multipart/form-data" action="" method="POST">
+            {{form.csrf_token}}
+            <div class="carousel-default owl-carousel">
+              {% for file, dets in filedets.items() %}
+                {% set outer_loop = loop %}
+                <div class="item">
+                  <span style="position:relative">
+                    <img class="det-image" src="{{ url_for('static', filename='temp/'+file) }}" alt="" id="{{ outer_loop.index }}" orig-height="{{ filedims[file]['height'] }}" orig-width="{{ filedims[file]['width'] }}" style="height: auto; width: auto; object-fit: contain; display: block; margin-left: auto; margin-right: auto; max-width: 100%; max-height: 60vh">
+                    {% for b, box in dets.items() %}
+                      <label class="button button-white-stroke s-12" btnclass="bounding-box" name="bound{{ outer_loop.index }}" scaled="false" style="position:absolute; top:{{box[1]+23}}px; height:{{box[3]-box[1]}}px; left:{{box[0]-filedims[file]['width']/2}}px; width:{{box[2]-box[0]}}px">
+                        {{form|attr("customSwitch{}".format(b))(class_="face-check", onclick="unselect(this)", id=b)}}
+                      </label>
+                    {% endfor %}
+                  </span>
+                </div>
+              {% endfor %}
             </div>
-            {% endfor %}
+          </form>
+          <div class="s-12 m-12 l-3 center">
+            <label class="button button-white-stroke s-12 margin-top-bottom-10" id="select-all-label">
+              Select All<input type="checkbox" class="select-all-check" name="select-all-btn" id="select-all-btn">
+            </label>
+            <button id="upload-det-btn" class="button button-white-stroke s-12">
+              Accept
+            </button>
           </div>
-          <label class="button button-dark-stroke s-12" id="select-all-label">
-            Select All<input type="checkbox" class="select-all-check" name="select-all-btn" id="select-all-btn">
-          </label>
-          <button id="upload-det-btn" class="button button-dark-stroke s-12">
-            Accept
-          </button>
-        </div>
       </section>
     </main>
-    
-    <!-- FOOTER -->
-    <footer>
-      
-      <!-- Main Footer -->
-      <section class="background-dark full-width">
-        <!-- Map -->
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-            <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-location-pin text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70 margin-bottom-30">
-              <h3 class="margin-bottom-0">Company Address</h3>
-              <p>Responsive Street 7<br>
-                 London / United Kingdom / Europe
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-          <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-envelope text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70 margin-bottom-30">
-              <h3 class="margin-bottom-0">E-mail</h3>
-              <p>contact@sampledomain.com<br>
-                 office@sampledomain.com
-              </p>
-            </div>
-          </div>
-        </div>
-        <!-- Collumn 2 -->
-        <div class="s-8 m-8 l-4 margin-m-bottom-2x">
-          <div class="padding-2x">
-            <div class="float-left">
-              <i class="icon-sli-phone text-primary icon3x"></i>
-            </div>
-            <div class="margin-left-70">
-              <h3 class="margin-bottom-0">Phone Numbers</h3>
-              <p>0800 4521 800 50<br>
-                 0450 5896 625 16<br>
-                 0798 6546 465 15
-              </p>             
-            </div>
-          </div>
-        </div>  
-      </section>
-      <hr class="break margin-top-bottom-0" style="border-color: rgba(0, 38, 51, 0.80);">
-      
-      <!-- Bottom Footer -->
-      <section class="padding background-dark full-width">
-        <div class="s-12 l-6">
-          <p class="text-size-12">Copyright 2019, Vision Design - graphic zoo</p>
-        </div>
-        <div class="s-12 l-6">
-          <a class="right text-size-12" href="http://www.myresponsee.com" title="Responsee - lightweight responsive framework">Design and coding<br> by Responsee Team</a>
-        </div>
-      </section>
-    </footer>
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>

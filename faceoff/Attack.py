@@ -130,7 +130,8 @@ def find_adv(sess,
 
 def outer_attack(params,
                  people,
-                 sess_id):
+                 sess_id,
+                 index):
     """
     Description
 
@@ -138,32 +139,29 @@ def outer_attack(params,
     """
     tf_config = Config.set_gpu('0')
     done_imgs = {}
-    for person in people:
-        if len(person['base']['face']) > 0:
-            backend.clear_session()
-            tf.reset_default_graph()
-            with tf.Session(config=tf_config) as sess:
-                Config.BM.mark('Model Loaded')
-                fr_model = get_model()
-                Config.BM.mark('Model Loaded')
+    person = people[index]
+    if len(person['base']['face']) > 0:
+        backend.clear_session()
+        tf.reset_default_graph()
+        with tf.Session(config=tf_config) as sess:
+            Config.BM.mark('Model Loaded')
+            fr_model = get_model()
+            Config.BM.mark('Model Loaded')
 
-                Config.BM.mark('Adversarial Example Generation')
-                adv, delta, lp, const = find_adv(sess,
-                                                 params=params,
-                                                 fr_model=fr_model,
-                                                 face=person['base']['face'],
-                                                 face_stack_source=person['base']['source'],
-                                                 face_stack_target=person['target'],
-                                                 margin=params['margin'])
-                Config.BM.mark('Adversarial Example Generation')
+            Config.BM.mark('Adversarial Example Generation')
+            adv, delta, lp, const = find_adv(sess,
+                                             params=params,
+                                             fr_model=fr_model,
+                                             face=person['base']['face'],
+                                             face_stack_source=person['base']['source'],
+                                             face_stack_target=person['target'],
+                                             margin=params['margin'])
+            Config.BM.mark('Adversarial Example Generation')
 
-            done_imgs = amplify(params=params,
-                                face=person['base']['face'],
-                                delta=delta,
-                                amp=params['amp'],
-                                person=person,
-                                done_imgs=done_imgs)
-    save_image(done_imgs=done_imgs,
-               sess_id=sess_id)
-
-            
+        done_imgs = amplify(params=params,
+                            face=person['base']['face'],
+                            delta=delta,
+                            amp=params['amp'],
+                            person=person,
+                            done_imgs=done_imgs)
+    return done_imgs            

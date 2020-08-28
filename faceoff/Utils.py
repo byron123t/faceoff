@@ -10,6 +10,8 @@ from tensorflow.keras import backend
 from zipfile import ZipFile
 import io
 from PIL import Image
+from functools import partial
+from multiprocessing import Pool
 
 
 def transpose_back(params,
@@ -40,54 +42,48 @@ def save_image(done_imgs,
                sess_id):
     """
     """
-    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
-        for filename, img in done_imgs.items():
-            buf = io.BytesIO()
-            orig = filename.replace(sess_id, '')
-            index = orig.index('.')
-            im = Image.fromarray((img * 255).astype(np.uint8))
-            ext = orig[index:].lower()
-            print(ext)
-            if ext == '.jpg' or ext == '.jpeg':
-                format_type = 'JPEG'
-            elif ext == '.png':
-                format_type = 'PNG'
-            elif ext == '.gif':
-                format_type = 'GIF'
-            else:
-                format_type = 'ERROR'
-            im.save(buf, format_type)
-            zf.writestr(orig, buf.getvalue())
-            print(orig)
+    for filename, img in done_imgs.items():
+        buf = io.BytesIO()
+        orig = filename.replace(sess_id, '')
+        index = orig.index('.')
+        im = Image.fromarray((img * 255).astype(np.uint8))
+        ext = orig[index:].lower()
+        print(ext)
+        if ext == '.jpg' or ext == '.jpeg':
+            format_type = 'JPEG'
+        elif ext == '.png':
+            format_type = 'PNG'
+        elif ext == '.gif':
+            format_type = 'GIF'
+        else:
+            format_type = 'ERROR'
+        im.save(buf, format_type)
+        zf.writestr(orig, buf.getvalue())
+        print(orig)
 
 
-def face_detection(imgfiles, outfilenames):
+def face_detection(imgfiles, outfilenames, index):
+    import tensorflow as tf
+    tf_config = Config.set_gpu('0')
     filenames = []
     imgs = []
     dets = []
     base_faces = []
-    count = 0
     with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
+        sess = tf.Session(config=tf_config)
         with sess.as_default():
             pnet, rnet, onet = create_mtcnn(sess, None)
+    tf.reset_default_graph()
+    face, det, count = crop_face(imgfiles[index], pnet, rnet, onet, outfilenames[index])
+    if face is not None:
+        for f, d in zip(face, det):
+            img = np.around(imgfiles[index] / 255.0, decimals=12)
+            base_faces.append(f)
+            imgs.append(img)
+            dets.append(d)
+            filenames.append(outfilenames[index])
 
-    for i, img in enumerate(imgfiles):
-        face, det, count = crop_face(img, pnet, rnet, onet, outfilenames[i], count)
-        if face is not None:
-            for f, d in zip(face, det):
-                img = np.around(img / 255.0, decimals=12)
-                base_faces.append(f)
-                imgs.append(img)
-                dets.append(d)
-                filenames.append(outfilenames[i])
-
-    faces = np.squeeze(np.array(base_faces))
-    if len(imgs) <= 1:
-        faces = np.expand_dims(faces, axis=0)
-
-    return faces, filenames, imgs, dets
+    return base_faces, filenames, imgs, dets, count
 
 def load_images(params, selected, sess_id):
     """
@@ -98,6 +94,7 @@ def load_images(params, selected, sess_id):
     dets = data['dets']
     pairs = data['pairs']
     filenames = data['filenames']
+    counts = data['counts']
     filename_dict = {}
     for file in filenames:
         d = dets.item()
@@ -116,7 +113,7 @@ def load_images(params, selected, sess_id):
         for i in face_matches['faces']:
             file = filename_dict[i]
             index = file.index('.')
-            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], i)))
+            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], counts[i])))
             face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
             face = (face-0.5)*2
             img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
@@ -190,6 +187,8 @@ def compute_embeddings(tf_config, batch_size, faces):
                 cur_imgs = np.pad(cur_imgs, ((0,sub_batch),(0,0),(0,0),(0,0)))
             cur_embeddings.extend(sess.run(eval.embedding, feed_dict={eval.input_tensor: cur_imgs}))
         embeddings = np.array(cur_embeddings[:-sub_batch])
+    backend.clear_session()
+    tf.reset_default_graph()
     return embeddings
 
 

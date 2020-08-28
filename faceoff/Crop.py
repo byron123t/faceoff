@@ -28,7 +28,7 @@ def pre_proc(img, params):
     return img_CHW
 
 
-def crop_face(img, pnet, rnet, onet, outfilename, count):
+def crop_face(img, pnet, rnet, onet, outfilename):
     """
     Description
 
@@ -55,6 +55,7 @@ def crop_face(img, pnet, rnet, onet, outfilename, count):
         return None, None
     dets = []
     faces = []
+    count = 0
     for i in range(nrof_faces):
         det = bounding_boxes[i]
         img_size = np.asarray(img.shape)[0:2]
