@@ -381,7 +381,7 @@ class PGD(Attack):
         first = True
         for i in range(self.nb_iter):
             loss, eta = self.attack_single_step(x, eta, first)
-            print('iter: ', i, loss)
+            # print('iter: ', i, loss)
             first = False
 
         adv_x = x + eta

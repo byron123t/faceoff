@@ -1,14 +1,9 @@
 import numpy as np
-import tensorflow as tf
 from faceoff import Config
-from faceoff.CW import CW
-from faceoff.PGD import PGD
-from faceoff.Models import get_model
 from faceoff.Crop import apply_delta
 from faceoff.Utils import transpose_back
 from faceoff.Utils import save_image
 import argparse
-from keras import backend
 
 
 def amplify(params,
@@ -53,6 +48,7 @@ def amplify(params,
 
         elif filename not in done_imgs:
             done_imgs[filename] = img
+        print(done_imgs)
 
     return done_imgs
 
@@ -66,6 +62,8 @@ def find_adv(sess,
              face_stack_source,
              face_stack_target,
              margin=0):
+    from faceoff.CW import CW
+    from faceoff.PGD import PGD
     """
     Description
 
@@ -130,25 +128,24 @@ def find_adv(sess,
 
 def outer_attack(params,
                  people,
-                 sess_id,
                  index):
+    import tensorflow as tf
+    from keras import backend
+    from faceoff.Models import get_model
     """
     Description
 
     Keyword arguments:
     """
     tf_config = Config.set_gpu('0')
-    done_imgs = {}
+    
     person = people[index]
     if len(person['base']['face']) > 0:
         backend.clear_session()
         tf.reset_default_graph()
         with tf.Session(config=tf_config) as sess:
-            Config.BM.mark('Model Loaded')
             fr_model = get_model()
-            Config.BM.mark('Model Loaded')
 
-            Config.BM.mark('Adversarial Example Generation')
             adv, delta, lp, const = find_adv(sess,
                                              params=params,
                                              fr_model=fr_model,
@@ -156,12 +153,7 @@ def outer_attack(params,
                                              face_stack_source=person['base']['source'],
                                              face_stack_target=person['target'],
                                              margin=params['margin'])
-            Config.BM.mark('Adversarial Example Generation')
-
-        done_imgs = amplify(params=params,
-                            face=person['base']['face'],
-                            delta=delta,
-                            amp=params['amp'],
-                            person=person,
-                            done_imgs=done_imgs)
-    return done_imgs            
+        backend.clear_session()
+        tf.reset_default_graph()
+        print(person['base']['index'])
+    return person, delta

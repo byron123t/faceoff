@@ -6,9 +6,9 @@ import numpy as np
 import cv2
 from uuid import uuid4
 from werkzeug.utils import secure_filename
-from faceoff.Utils import face_detection, face_recognition, match_closest, load_images
+from faceoff.Utils import face_detection, face_recognition, match_closest, load_images, save_image
 from faceoff import Config
-from faceoff.Attack import outer_attack
+from faceoff.Attack import outer_attack, amplify
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
 from wtforms.fields.html5 import IntegerRangeField
@@ -17,6 +17,8 @@ from datetime import timedelta
 from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
+import redis
+from rq import Queue, Worker, Connection
 
 
 ROOT = os.path.abspath('.')
@@ -29,6 +31,8 @@ RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 app = Flask(__name__)
+r = redis.Redis()
+q = Queue(connection=r)
 app.config['SECRET_KEY'] = secrets.token_bytes(16)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -65,13 +69,24 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in EXTENSIONS
 
 
+def _face_recognition(faces, threshold, batch_size):
+    with Pool(processes=1) as pool:
+        return pool.apply(face_recognition, (faces, threshold, batch_size))
+
+
+def _session_attr(key):
+    try:
+        return session[key]
+    except KeyError:
+        return None
+
+
 @app.route('/', methods=['GET', 'POST'])
 def handle_upload(name=None):
     form = PhotoForm()
     sess_id = str(uuid4())
     if request.method == 'POST':
         if form.is_submitted():
-            print(form.photo.data)
             files = form.photo.data
             imgfiles = []
             outfilenames = []
@@ -85,11 +100,11 @@ def handle_upload(name=None):
                     npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
                     print(npimg.shape)
                     imgfiles.append(npimg)
+            if len(imgfiles) == 0:
+                return redirect(request.url)
         else:
-            print('No selected file', flush=True)
-            flash('No selected file')
             return redirect(request.url)
-        with Pool(processes=4) as pool:
+        with Pool(processes=3) as pool:
             func = partial(face_detection, imgfiles, outfilenames)
             results = pool.map(func, (range(len(imgfiles))))
         base_faces = []
@@ -109,7 +124,7 @@ def handle_upload(name=None):
         if len(imgs) <= 1:
             faces = np.expand_dims(faces, axis=0)
         tf_config = Config.set_gpu('0')
-        embeddings, buckets, means = face_recognition(faces, 13, 10, tf_config)
+        embeddings, buckets, means = _face_recognition(faces, 13, 10)
         pairs = match_closest(means)
         lfw_pairs = {}
         for key, val in pairs.items():
@@ -141,13 +156,14 @@ def handle_upload(name=None):
 @app.route('/detected_faces', methods=['GET', 'POST'])
 def detected_faces():
     count = 0
-    filedets = session['filedets']
-    filedims = session['filedims']
+    filedets = _session_attr('filedets')
+    filedims = _session_attr('filedims')
 
-    if filedets is not None:
+    if filedets is not None and filedims is not None:
         filedets = json.loads(filedets)
-    if filedims is not None:
         filedims = json.loads(filedims)
+    else:
+        return redirect(url_for('handle_upload'))
     for key, val in filedets.items():
         count += len(val.keys())
         print(count)
@@ -170,8 +186,10 @@ def detected_faces():
 
 @app.route('/select_pert', methods=['GET', 'POST'])
 def select_pert():
-    sess_id = session['sess_id']
-    selected = session['selected']
+    sess_id = _session_attr('sess_id')
+    selected = _session_attr('selected')
+    if sess_id is None or selected is None:
+        return redirect(url_for('handle_upload'))
     form = PertForm()
     att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
                 'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
@@ -220,18 +238,38 @@ def select_pert():
         people = load_images(params=params,
                              selected=selected,
                              sess_id=sess_id)
-        zf = ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w')
-        with Pool(processes=4) as pool:
-            func = partial(outer_attack, params, people, sess_id, zf)
-            pool.map(func, (range(len(people))))
+        with Pool(processes=2) as pool:
+            func = partial(outer_attack, params, people)
+            results = pool.map(func, (range(len(people))))
+        done_imgs = {}
+        print('finished!')
+        for i, val in enumerate(results):
+            person = val[0]
+            delta = val[1]
+            done_imgs = amplify(params=params,
+                                face=person['base']['face'],
+                                delta=delta,
+                                amp=params['amp'],
+                                person=person,
+                                done_imgs=done_imgs)
+        save_image(done_imgs=done_imgs,
+                   sess_id=sess_id)
+
         return redirect(url_for('download'))
 
 
 @app.route('/download', methods=['GET', 'POST'])
 def download():
-    sess_id = session['sess_id']
+    sess_id = _session_attr('sess_id')
+    if sess_id is None:
+        return redirect(url_for('handle_upload'))
     if request.method == 'GET':
         return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
     else:
         print(request.form)
         return redirect(url_for('handle_upload'))
+
+
+@app.route('/about', methods=['GET'])
+def about():
+    return render_template('about.html')

@@ -1,5 +1,4 @@
 import os, cv2
-import tensorflow as tf
 import numpy as np
 from timeit import default_timer as timer
 
@@ -78,6 +77,7 @@ def string_to_bool(arg):
 
 
 def set_gpu(gpu):
+    import tensorflow as tf
     """Configures CUDA environment variable and returns tensorflow GPU config."""
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu
     tf_config = tf.ConfigProto()
@@ -96,7 +96,7 @@ def set_parameters(targeted_flag='true',
                    attack='CW',
                    norm='2',
                    epsilon=0.1,
-                   iterations=20,
+                   iterations=100,
                    binary_steps=8,
                    learning_rate=0.01,
                    epsilon_steps=0.01,

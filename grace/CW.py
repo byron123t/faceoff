@@ -84,7 +84,6 @@ class CW:
         """
 
         #above: missing several parameter descriptions 
-        Config.BM.mark('cw params')
         image_height, image_width, num_channels = model.image_height, model.image_width, model.num_channels
         self.sess = sess
         self.model = model
@@ -269,7 +268,6 @@ class CW:
         self.setup.append(self.tau.assign(self.assign_tau))
         
         self.init = tf.variables_initializer(var_list=[modifier]+new_vars)
-        Config.BM.mark('cw params')
 
     def attack(self, 
                imgs, 
@@ -322,7 +320,6 @@ class CW:
         """
         Run the attack on a batch of images and labels.
         """
-        Config.BM.mark('imgsetup')
         batch_size = self.batch_size
 
         imgs = np.arctanh((imgs - self.boxplus) / self.boxmul * 0.999999)
@@ -338,9 +335,7 @@ class CW:
         best_adv = [None] * batch_size
         best_delta = [None] * batch_size
         best_const = [None] * batch_size
-        Config.BM.mark('imgsetup')
         for outer_step in range(self.BINARY_SEARCH_STEPS):
-            Config.BM.mark('init')
             self.sess.run(self.init)
            
             best_loss_inner = [1e10] * batch_size
@@ -352,14 +347,11 @@ class CW:
             # The last iteration (if we run many steps) repeat the search once.
             if self.repeat and outer_step == self.BINARY_SEARCH_STEPS - 1:
                 CONST = const_high
-            Config.BM.mark('init')
-            Config.BM.mark('cw assign')
             self.sess.run(self.setup, {self.assign_timg: imgs,
                                        self.assign_const: CONST,
                                        self.assign_targetdb: face_stack_target,
                                        self.assign_selfdb: face_stack_self,
                                        self.assign_tau: np.zeros(1)})
-            Config.BM.mark('cw assign')
             prev = 1e6
             for iteration in range(self.MAX_ITERATIONS):
                 _, l, nimg, delta, dist_src, dist_target = self.sess.run([self.train, 

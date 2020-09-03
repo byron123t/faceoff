@@ -2108,3 +2108,30 @@ video {
     padding: 0;
   }
 }    
+
+
+.mark {
+  width: 2px;
+  height: 30px;
+  background-color: #aaa;
+  position: fixed;
+  top: 6px;
+  z-index: -1;
+}
+
+.mark1 {
+  left: 13%;
+}
+
+.mark2 {
+  left: 38%;
+}
+
+.mark3 {
+  right: 13%;
+}
+
+.mark4 {
+  right: 38%;
+}
+

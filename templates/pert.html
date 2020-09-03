@@ -34,21 +34,7 @@
           <p class="nav-text"></p>
           <ul class="right chevron">
             <li><a href="/">Home</a></li>
-<!--             <li><a href="products.html">Products</a></li>
-            <li><a>Services</a>
-              <ul>
-                <li><a>Service 1</a>
-                  <ul>
-                    <li><a>Service 1 A</a></li>
-                    <li><a>Service 1 B</a></li>
-                  </ul>
-                </li>
-                <li><a>Service 2</a></li>
-              </ul>
-            </li>
-            <li><a href="about.html">About</a></li>
-            <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li> -->
+            <li><a href="/about">About</a></li>
           </ul>
         </div>
       </nav>
@@ -57,26 +43,41 @@
     <!-- MAIN -->
     <main role="main">    
       <!-- Section 1 -->
-      <section class="section-small-padding text-center"> 
+      <section class="section text-center"> 
+        <h2 class="text-size-50 text-center text-white">Select Privacy Settings</h2>
+        <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-10 text-size-20">Click and drag the slider to your preferred settings</p></div>
+        <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-14">Face-Off does not guarantee privacy protection. Adding these strategic distortions only improves the probability of hiding your face from a face recognition system.</p></div>
         <form id="upload-pert" enctype="multipart/form-data" action="" method="POST">
           {{form.csrf_token}}
           <div class="line">
-            <div class="margin-top-bottom-60">
+            <div class="margin-bottom-80">
               <div class="slide-container">
-                {{ form.attacks(min=0, max=1, id='attack-slide', extra_classes='slider', oninput='attackUpdate(value)', style='width;') }}
-               <h2 class="text-thin text-white text-center" id="attack-display">Slow (~50s / unique face) - Smaller Distortion</h2>
-             </div>
+                {{ form.attacks(min=0, max=1, id='attack-slide', extra_classes='slider', oninput='attackUpdate(value)', style='width:100%; height:55px;') }}
+                  <div style="display: flex; justify-content: space-between; padding: $unit $unit
+                  *2;">
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Slow</span>
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Quick</span>
+                </div>
+               <h2 class="text-thin text-white text-center" id="attack-display">Slow (~50s / unique face) = Smaller Overall Distortion</h2>
             </div>
-            <div class="margin">
+            <div class="margin-top-bottom-80">
               <div class="slide-container">
-                {{ form.perts(min=0, max=4, id='pert-slide', extra_classes='slider', oninput='pertUpdate(value)', style='width:40%;') }}
-               <h2 class="text-thin text-white text-center" id="pert-display">Some Distortion - Some Privacy</h2>
+                {{ form.perts(min=0, max=4, id='pert-slide', extra_classes='slider', oninput='pertUpdate(value)', style='width:100%;') }}
+                <div style="display: flex; justify-content: space-between; padding: $unit $unit
+                  *2;">
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Most</span>
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">More</span>
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Some</span>
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Less</span>
+                    <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Least</span>
+                </div>
+               <h2 class="text-thin text-white text-center" id="pert-display">Some Distortion = Moderate Privacy</h2>
              </div>
             </div>
           </div>
         </form>
         <div class="s-12 m-12 l-3 center">
-          <button id="upload-pert-btn" class="button button-white-stroke s-12 margin-top-bottom-10">
+          <button id="upload-pert-btn" class="button button-white-stroke s-12 margin-top-bottom-10 text-size-20">
             Accept
           </button>
         </div>

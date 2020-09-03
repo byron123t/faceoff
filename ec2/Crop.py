@@ -1,6 +1,5 @@
 import sys
 import os
-import tensorflow as tf
 import numpy as np
 from faceoff.dets.DetectFace import create_mtcnn, detect_face
 import scipy.misc as ms

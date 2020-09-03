@@ -35,21 +35,7 @@
           <p class="nav-text"></p>
           <ul class="right chevron">
             <li><a href="/">Home</a></li>
-<!--             <li><a href="products.html">Products</a></li>
-            <li><a>Services</a>
-              <ul>
-                <li><a>Service 1</a>
-                  <ul>
-                    <li><a>Service 1 A</a></li>
-                    <li><a>Service 1 B</a></li>
-                  </ul>
-                </li>
-                <li><a>Service 2</a></li>
-              </ul>
-            </li>
-            <li><a href="about.html">About</a></li>
-            <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li> -->
+            <li><a href="/about">About</a></li>
           </ul>
         </div>
       </nav>
@@ -67,20 +53,21 @@
                 <div class="content-center-vertical line">
                   <div class="margin-top-bottom-80">
                     <!-- Title -->
-                    <h1 class="text-white text-center margin-bottom-30 text-size-60 text-m-size-30 text-line-height-1">Face-Off</h1>
-                    <div class="s-12 m-10 l-8 text-center center"><p class="text-white text-size-14 margin-bottom-40">Protect your face data with state of the art machine learning privacy research!<br/>Face-Off hides your face from face recognition algorithms.</p></div>
+                    <h1 class="text-white text-center margin-bottom-30 text-size-70 text-m-size-30 text-line-height-1">Face-Off</h1>
+                    <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-20">Protect your face data with state of the art machine learning privacy research!<br/>Face-Off hides your face from face recognition algorithms.</p></div>
+                    <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-20 text-size-14">To begin, select 1 or more images to upload. Don't forget to check the CAPTCHA!</p></div>
                     <div class="line">
-                      <div class="s-12 m-12 l-3 center">
+                      <div class="s-12 m-12 l-3 center margin-top-bottom-30">
                         <form id="upload-img" enctype="multipart/form-data" action="" method="POST">
-                          <label class="button button-white-stroke s-12">
+                          <label class="button button-white-stroke s-12 text-size-20">
                             <!-- Select Images <input id="image-file" type="file" name="file" accept="image/png,image/jpeg,image/jpg" hidden multiple> -->
                             {{form.csrf_token}}
                             Select Images{{form.photo(hidden="true")}}
                           </label>
-                          <button id="upload-img-btn" class="button button-white-stroke s-12">
+                          <button id="upload-img-btn" class="button button-white-stroke s-12 margin-top-bottom-30 text-size-20">
                             Upload
                           </button>
-                          <p class="text-center text-white" id="file-counter">0 files selected</p>
+                          <p class="text-center text-white text-size-20" id="file-counter">0 files selected</p>
                           <br/>
                           {{form.recaptcha}}
                         </form>

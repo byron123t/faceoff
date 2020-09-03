@@ -146,16 +146,16 @@ $(window).on('resize', function(){
 })});
 
 var attack_steps = [
-    "Slow (~50s / unique face) - Smaller Distortion",
-    "Quick (~10s / unique face) - Larger Distortion",
+    "Slow (~50s / unique face) = Smaller Overall Distortion",
+    "Quick (~10s / unique face) = Larger Overall Distortion",
 ];
 
 var pert_steps = [
-    "Heavy Distortion - Most Privacy",
-    "More Distortion - More Privacy",
-    "Some Distortion - Some Privacy",
-    "Less Distortion - Less Privacy",
-    "Light Distortion - Least Privacy",
+    "Heavy Distortion = Most Privacy",
+    "More Distortion = More Privacy",
+    "Some Distortion = Moderate Privacy",
+    "Less Distortion = Less Privacy",
+    "Light Distortion = Least Privacy",
 ];
 
 
@@ -166,3 +166,8 @@ function attackUpdate(value) {
 function pertUpdate(value) {
     $('#pert-display').html(pert_steps[value]);
 }
+
+$(document).live('ready', (function(){
+    $('#attack-slide')[0].classList.add('');
+    $('#pert-slide')[0].classList.add('');
+}));

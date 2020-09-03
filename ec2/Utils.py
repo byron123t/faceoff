@@ -3,7 +3,6 @@ import numpy as np
 import os
 import math
 from faceoff import Config
-import tensorflow as tf
 from faceoff.Crop import *
 from faceoff.Models import get_model
 from tensorflow.keras import backend
@@ -42,24 +41,25 @@ def save_image(done_imgs,
                sess_id):
     """
     """
-    for filename, img in done_imgs.items():
-        buf = io.BytesIO()
-        orig = filename.replace(sess_id, '')
-        index = orig.index('.')
-        im = Image.fromarray((img * 255).astype(np.uint8))
-        ext = orig[index:].lower()
-        print(ext)
-        if ext == '.jpg' or ext == '.jpeg':
-            format_type = 'JPEG'
-        elif ext == '.png':
-            format_type = 'PNG'
-        elif ext == '.gif':
-            format_type = 'GIF'
-        else:
-            format_type = 'ERROR'
-        im.save(buf, format_type)
-        zf.writestr(orig, buf.getvalue())
-        print(orig)
+    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+        for filename, img in done_imgs.items():
+            buf = io.BytesIO()
+            orig = filename.replace(sess_id, '')
+            index = orig.index('.')
+            im = Image.fromarray((img * 255).astype(np.uint8))
+            ext = orig[index:].lower()
+            print(ext)
+            if ext == '.jpg' or ext == '.jpeg':
+                format_type = 'JPEG'
+            elif ext == '.png':
+                format_type = 'PNG'
+            elif ext == '.gif':
+                format_type = 'GIF'
+            else:
+                format_type = 'ERROR'
+            im.save(buf, format_type)
+            zf.writestr(orig, buf.getvalue())
+            print(orig)
 
 
 def face_detection(imgfiles, outfilenames, index):
@@ -154,6 +154,7 @@ class Evaluate:
     def __init__(self,
                  fr_model,
                  batch_size):
+        import tensorflow as tf
         height = fr_model.image_height
         width = fr_model.image_width
         channels = fr_model.num_channels
@@ -172,6 +173,7 @@ def compute_distance(person1, person2):
 
 
 def compute_embeddings(tf_config, batch_size, faces):
+    import tensorflow as tf
     backend.clear_session()
     tf.reset_default_graph()
     with tf.Session(config=tf_config) as sess:
@@ -248,7 +250,8 @@ def bfs(buckets, size, embeddings):
     return people, means
 
 
-def face_recognition(faces, threshold, batch_size, tf_config):
+def face_recognition(faces, threshold, batch_size):
+    tf_config = Config.set_gpu('0')
     embeddings = compute_embeddings(tf_config, batch_size, faces)
     buckets = {}
     means = {}
@@ -265,7 +268,11 @@ def face_recognition(faces, threshold, batch_size, tf_config):
                 else:
                     if p1 not in buckets:
                         buckets[p1] = []
+                    if p2 not in buckets:
+                        buckets[p2] = []
         done.append(p1)
+    if len(done) == 1:
+        buckets[0] = []
     print(buckets)
     people, means = bfs(buckets, len(embeddings), embeddings)
     print(people)

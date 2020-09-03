@@ -36,21 +36,7 @@
           <p class="nav-text"></p>
           <ul class="right chevron">
             <li><a href="/">Home</a></li>
-<!--             <li><a href="products.html">Products</a></li>
-            <li><a>Services</a>
-              <ul>
-                <li><a>Service 1</a>
-                  <ul>
-                    <li><a>Service 1 A</a></li>
-                    <li><a>Service 1 B</a></li>
-                  </ul>
-                </li>
-                <li><a>Service 2</a></li>
-              </ul>
-            </li>
-            <li><a href="about.html">About</a></li>
-            <li><a href="gallery.html">Gallery</a></li>
-            <li><a href="contact.html">Contact</a></li> -->
+            <li><a href="/about">About</a></li>
           </ul>
         </div>
       </nav>
@@ -62,6 +48,7 @@
       <!-- Section 5 -->    
       <section class="section text-center">
           <h2 class="text-size-50 text-center text-white">Select Faces to Hide</h2>
+          <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-14">Please click on the faces you would like to hide. Click the arrows or click and drag the image if you've uploaded more than one photo.</p></div>
           <hr class="break-small background-primary break-center">
           <form id="upload-det" enctype="multipart/form-data" action="" method="POST">
             {{form.csrf_token}}
@@ -72,7 +59,7 @@
                   <span style="position:relative">
                     <img class="det-image" src="{{ url_for('static', filename='temp/'+file) }}" alt="" id="{{ outer_loop.index }}" orig-height="{{ filedims[file]['height'] }}" orig-width="{{ filedims[file]['width'] }}" style="height: auto; width: auto; object-fit: contain; display: block; margin-left: auto; margin-right: auto; max-width: 100%; max-height: 60vh">
                     {% for b, box in dets.items() %}
-                      <label class="button button-white-stroke s-12" btnclass="bounding-box" name="bound{{ outer_loop.index }}" scaled="false" style="position:absolute; top:{{box[1]+23}}px; height:{{box[3]-box[1]}}px; left:{{box[0]-filedims[file]['width']/2}}px; width:{{box[2]-box[0]}}px">
+                      <label class="button button-white-stroke s-12" btnclass="bounding-box" name="bound{{ outer_loop.index }}" scaled="false" style="border-width:3px; position:absolute; top:{{box[1]+23}}px; height:{{box[3]-box[1]}}px; left:{{box[0]-filedims[file]['width']/2}}px; width:{{box[2]-box[0]}}px">
                         {{form|attr("customSwitch{}".format(b))(class_="face-check", onclick="unselect(this)", id=b)}}
                       </label>
                     {% endfor %}
@@ -82,10 +69,10 @@
             </div>
           </form>
           <div class="s-12 m-12 l-3 center">
-            <label class="button button-white-stroke s-12 margin-top-bottom-10" id="select-all-label">
-              Select All<input type="checkbox" class="select-all-check" name="select-all-btn" id="select-all-btn">
+            <label class="button button-white-stroke s-12 margin-top-bottom-10 text-size-20" id="select-all-label">
+              Select All Faces  <input type="checkbox" class="select-all-check" name="select-all-btn" id="select-all-btn">
             </label>
-            <button id="upload-det-btn" class="button button-white-stroke s-12">
+            <button id="upload-det-btn" class="button button-white-stroke s-12 text-size-20">
               Accept
             </button>
           </div>
