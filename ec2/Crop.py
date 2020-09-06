@@ -27,7 +27,7 @@ def pre_proc(img, params):
     return img_CHW
 
 
-def crop_face(img, pnet, rnet, onet, outfilename):
+def crop_face(img, pnet, rnet, onet, outfilename, sess_id):
     """
     Description
 
@@ -67,8 +67,10 @@ def crop_face(img, pnet, rnet, onet, outfilename):
         cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
         scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
         scaled = scaled[...,::-1]
+
         index = outfilename.index('.')
-        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(outfilename[:index], count)),scaled)
+        orig = '{}_{}.png'.format(outfilename[:index], count)
+        zip_image(orig, sess_id, scaled)
         count += 1
         
         face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)
@@ -125,6 +127,7 @@ def read_face_from_files(file_list, model, interpolation):
     result = np.array(result)
     return result
 
+
 def read_face_from_aligned(file_list, params):
     """
     Description
@@ -142,3 +145,16 @@ def read_face_from_aligned(file_list, params):
         result.append(face)
     result = np.array(result)
     return result
+
+
+def read_full_image(file):
+    img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
+    img = np.around(img / 255.0, decimals=12)
+    return img
+
+
+def read_face_image(file, count):
+    face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file, count)))
+    face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
+    face = (face-0.5)*2
+    return face

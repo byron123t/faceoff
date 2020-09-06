@@ -157,3 +157,5 @@ def outer_attack(params,
         tf.reset_default_graph()
         print(person['base']['index'])
     return person, delta
+
+

@@ -18,6 +18,10 @@ from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
 import redis
+import string
+import random
+import datetime
+import paramiko
 from rq import Queue, Worker, Connection
 
 
@@ -28,6 +32,11 @@ EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
 RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
 RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+
+HOST = '10.0.0.24'
+PORT = 22
+USERNAME = 'asianturtle'
+REM_ROOT = '/home/asianturtle/faceoff'
 
 
 app = Flask(__name__)
@@ -69,11 +78,6 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in EXTENSIONS
 
 
-def _face_recognition(faces, threshold, batch_size):
-    with Pool(processes=1) as pool:
-        return pool.apply(face_recognition, (faces, threshold, batch_size))
-
-
 def _session_attr(key):
     try:
         return session[key]
@@ -84,28 +88,37 @@ def _session_attr(key):
 @app.route('/', methods=['GET', 'POST'])
 def handle_upload(name=None):
     form = PhotoForm()
-    sess_id = str(uuid4())
+    # sess_id = str(uuid4())
+    sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+    with FileLock('ids.txt.lock', timeout=10.0) as fl:
+        with open('ids.txt', 'rw') as userids:
+            txt = userids.read()
+            while sess_id in userids:
+                # sess_id = str(uuid4())
+                sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+
     if request.method == 'POST':
         if form.is_submitted():
-            files = form.photo.data
-            imgfiles = []
-            outfilenames = []
-            for file in files:
-                filename = secure_filename(file.filename)
-                if file and allowed_file(filename):
-                    index = filename.index('.')
-                    outfile = filename[:index] + sess_id + filename[index:]
-                    outfilenames.append(outfile)
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
-                    npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
-                    print(npimg.shape)
-                    imgfiles.append(npimg)
-            if len(imgfiles) == 0:
-                return redirect(request.url)
+            with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+                files = form.photo.data
+                imgfiles = []
+                outfilenames = []
+                for file in files:
+                    filename = secure_filename(file.filename)
+                    if file and allowed_file(filename):
+                        index = filename.index('.')
+                        outfile = filename[:index] + sess_id + filename[index:]
+                        outfilenames.append(outfile)
+                        npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
+                        zip_image(outfile, sess_id, npimg)
+                        print(npimg.shape)
+                        imgfiles.append(npimg)
+                if len(imgfiles) == 0:
+                    return redirect(request.url)
         else:
             return redirect(request.url)
         with Pool(processes=3) as pool:
-            func = partial(face_detection, imgfiles, outfilenames)
+            func = partial(face_detection, imgfiles, outfilenames, sess_id)
             results = pool.map(func, (range(len(imgfiles))))
         base_faces = []
         filenames = []
@@ -123,14 +136,7 @@ def handle_upload(name=None):
         faces = np.squeeze(np.array(base_faces))
         if len(imgs) <= 1:
             faces = np.expand_dims(faces, axis=0)
-        tf_config = Config.set_gpu('0')
-        embeddings, buckets, means = _face_recognition(faces, 13, 10)
-        pairs = match_closest(means)
-        lfw_pairs = {}
-        for key, val in pairs.items():
-            lfw_pairs[key] = {'pair': val, 'faces': buckets[key]}
-        print(pairs)
-        print(buckets)
+        # save face np or images
         filedets = {}
         filedims = {}
         count = 0
@@ -142,11 +148,10 @@ def handle_upload(name=None):
             filedims[f]['width'] = i.shape[1]
             filedets[f][count] = d.tolist()
             count += 1
-        print(filedets)
-        print(filedims)
-        np.savez(os.path.join(app.config['UPLOAD_FOLDER'], sess_id + 'data.npz'), pairs=lfw_pairs, dets=filedets, filenames=filenames, counts=counts)
         session['filedets'] = json.dumps(filedets)
         session['filedims'] = json.dumps(filedims)
+        session['filenames'] = json.dumps(filenames)
+        session['counts'] = json.dumps(counts)
         session['sess_id'] = sess_id
         return redirect(url_for('detected_faces'))
     else:
@@ -188,6 +193,10 @@ def detected_faces():
 def select_pert():
     sess_id = _session_attr('sess_id')
     selected = _session_attr('selected')
+    filedets = _session_attr('filedets')
+    filedims = _session_attr('filedims')
+    filenames = _session_attr('filenames')
+    counts = _session_attr('counts')
     if sess_id is None or selected is None:
         return redirect(url_for('handle_upload'))
     form = PertForm()
@@ -230,30 +239,36 @@ def select_pert():
             amplification = 3
         else:
             print('error')
-        params = Config.set_parameters(attack=attack,
-                                       norm=norm,
-                                       margin=margin,
-                                       amplification=amplification)
-        print(selected)
-        people = load_images(params=params,
-                             selected=selected,
-                             sess_id=sess_id)
-        with Pool(processes=2) as pool:
-            func = partial(outer_attack, params, people)
-            results = pool.map(func, (range(len(people))))
-        done_imgs = {}
-        print('finished!')
-        for i, val in enumerate(results):
-            person = val[0]
-            delta = val[1]
-            done_imgs = amplify(params=params,
-                                face=person['base']['face'],
-                                delta=delta,
-                                amp=params['amp'],
-                                person=person,
-                                done_imgs=done_imgs)
-        save_image(done_imgs=done_imgs,
-                   sess_id=sess_id)
+        with FileLock('ids.txt.lock', timeout=10.0) as fl:
+            with open('ids.txt', 'rw') as userids:
+                userids.write('{} - {} - {} - {}\n'.format(sess_id, datetime.utcnow(), attk, norm))
+        np.savez(os.path.join(app.config['UPLOAD_FOLDER'], '{}data.npz'.format(sess_id)),
+                 sess_id=sess_id,
+                 filedets=filedets,
+                 filedims=filedims,
+                 filenames=filenames,
+                 counts=counts,
+                 margin=margin,
+                 amplification=amplification,
+                 attack=attack,
+                 norm=norm)
+        with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'a') as zf:
+            zf.write(os.path.join(app.config['UPLOAD_FOLDER'], '{}data.npz'.format(sess_id)), '{}data.npz'.format(sess_id))
+
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            k = paramiko.RSAKey.from_private_key_file('~/.ssh/id_rsa')
+            ssh.connect(HOST, username=USERNAME, pkey = k)
+            sftp = ssh.open_sftp()
+            sftp.chdir(REM_ROOT)
+            localfile = os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id))
+            remotefile = os.path.join(REM_ROOT, 'static', 'temp', '{}.zip'.format(sess_id))
+            sftp.put(localfile, remotefile)
+            if sftp:
+                sftp.close()
+        except Exception as e:
+            print(e)
 
         return redirect(url_for('download'))
 
