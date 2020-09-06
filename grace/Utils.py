@@ -1,10 +1,9 @@
-import imageio
 import numpy as np 
 import os
 import math
-from faceoff import Config
-from faceoff.Crop import *
-from faceoff.Models import get_model
+from grace import Config
+from ec2.Crop import *
+from grace.Models import get_model
 from tensorflow.keras import backend
 from zipfile import ZipFile
 import io
@@ -37,71 +36,58 @@ def transpose_back(params,
     return adv_new_img, face_new
 
 
+def image_format(filename):
+    index = filename.index('.')
+    ext = filename[index:].lower()
+    if ext == '.jpg' or ext == '.jpeg':
+        format_type = 'JPEG'
+    elif ext == '.png':
+        format_type = 'PNG'
+    elif ext == '.gif':
+        format_type = 'GIF'
+    else:
+        format_type = 'ERROR'
+    return format_type
+
+
+def zip_image(filename, sess_id, img):
+    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'a') as zf:
+        buf = io.BytesIO()
+        orig = filename.replace(sess_id, '')
+        im = Image.fromarray((img * 255).astype(np.uint8))
+        im.save(buf, image_format(orig))
+        zf.writestr(orig, buf.getvalue())
+
+
 def save_image(done_imgs,
                sess_id):
     """
     """
-    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
-        for filename, img in done_imgs.items():
-            buf = io.BytesIO()
-            orig = filename.replace(sess_id, '')
-            index = orig.index('.')
-            im = Image.fromarray((img * 255).astype(np.uint8))
-            ext = orig[index:].lower()
-            print(ext)
-            if ext == '.jpg' or ext == '.jpeg':
-                format_type = 'JPEG'
-            elif ext == '.png':
-                format_type = 'PNG'
-            elif ext == '.gif':
-                format_type = 'GIF'
-            else:
-                format_type = 'ERROR'
-            im.save(buf, format_type)
-            zf.writestr(orig, buf.getvalue())
-            print(orig)
+    for filename, img in done_imgs.items():
+        zip_image(filename, sess_id, img)
 
 
-def face_detection(imgfiles, outfilenames, index):
-    import tensorflow as tf
-    tf_config = Config.set_gpu('0')
-    filenames = []
-    imgs = []
-    dets = []
-    base_faces = []
-    with tf.Graph().as_default():
-        sess = tf.Session(config=tf_config)
-        with sess.as_default():
-            pnet, rnet, onet = create_mtcnn(sess, None)
-    tf.reset_default_graph()
-    face, det, count = crop_face(imgfiles[index], pnet, rnet, onet, outfilenames[index])
-    if face is not None:
-        for f, d in zip(face, det):
-            img = np.around(imgfiles[index] / 255.0, decimals=12)
-            base_faces.append(f)
-            imgs.append(img)
-            dets.append(d)
-            filenames.append(outfilenames[index])
-
-    return base_faces, filenames, imgs, dets, count
-
-def load_images(params, selected, sess_id):
-    """
-    """
-    print('Loading Images...')
-    people = []
-    data = np.load(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'), allow_pickle=True)
-    dets = data['dets']
-    pairs = data['pairs']
-    filenames = data['filenames']
-    counts = data['counts']
+def get_filename_dict(filenames, dets):
     filename_dict = {}
     for file in filenames:
         d = dets.item()
         for i, val in d[file].items():
             filename_dict[i] = file
+    return filename_dict
+
+
+def load_images(params, data, pairs):
+    """
+    """
+    print('Loading Images...')
+    people = []
+    dets = data['dets']
+    filenames = data['filenames']
+    counts = data['counts']
+    selected = data['selected']
+    filename_dict = get_filename_dict(filenames, dets)
     print(filename_dict)
-    for key, face_matches in pairs.item().items():
+    for key, face_matches in pairs.items():
         print(face_matches)
         person = {'base': {}}
         person['base']['index'] = []
@@ -113,11 +99,8 @@ def load_images(params, selected, sess_id):
         for i in face_matches['faces']:
             file = filename_dict[i]
             index = file.index('.')
-            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], counts[i])))
-            face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
-            face = (face-0.5)*2
-            img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
-            img = np.around(img / 255.0, decimals=12)
+            face = read_face_image(file[:index], counts[i])
+            img = read_full_image(file)
 
             if i in selected:
                 print(selected, i)
@@ -299,3 +282,32 @@ def match_closest(embeddings):
         print(person1, min_person, min_distance)
 
     return pairs
+
+
+def _face_recognition(faces, threshold, batch_size):
+    with Pool(processes=1) as pool:
+        return pool.apply(face_recognition, (faces, threshold, batch_size))
+
+
+def recognize(data):
+    filedets = data['filedets']
+    filenames = data['filenames']
+    counts = data['counts']
+    filename_dict = get_filename_dict(filenames, filedets)
+    base_faces = []
+    for i, file in filename_dict.items():
+        index = file.index('.')
+        face = read_face_image(file[:index], counts[i])
+        base_faces.append(face)
+    faces = np.squeeze(np.array(base_faces))
+    if len(base_faces) <= 1:
+        faces = np.expand_dims(faces, axis=0)
+
+    tf_config = Config.set_gpu('0')
+    embeddings, buckets, means = _face_recognition(faces, 13, 10) # faces should be in an npz
+    pairs = match_closest(means)
+    lfw_pairs = {}
+    for key, val in pairs.items():
+        lfw_pairs[key] = {'pair': val, 'faces': buckets[key]}
+
+    return lfw_pairs

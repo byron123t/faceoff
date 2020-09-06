@@ -1,5 +1,5 @@
 import os
-from faceoff import Config
+from grace import Config
 from keras.models import load_model, model_from_json
 
 

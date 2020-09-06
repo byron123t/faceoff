@@ -6,22 +6,20 @@ import numpy as np
 import cv2
 from uuid import uuid4
 from werkzeug.utils import secure_filename
-from faceoff.Utils import face_detection, face_recognition, match_closest, load_images, save_image
-from faceoff import Config
-from faceoff.Attack import outer_attack, amplify
+from ec2.Utils import face_detection, save_image, zip_image
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
 from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField
-from datetime import timedelta
+from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
 import redis
 import string
 import random
-import datetime
 import paramiko
+from filelock import FileLock
 from rq import Queue, Worker, Connection
 
 
@@ -91,7 +89,7 @@ def handle_upload(name=None):
     # sess_id = str(uuid4())
     sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
     with FileLock('ids.txt.lock', timeout=10.0) as fl:
-        with open('ids.txt', 'rw') as userids:
+        with open('ids.txt', 'r') as userids:
             txt = userids.read()
             while sess_id in userids:
                 # sess_id = str(uuid4())
@@ -99,7 +97,7 @@ def handle_upload(name=None):
 
     if request.method == 'POST':
         if form.is_submitted():
-            with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+            with ZipFile(os.path.join(app.config['UPLOAD_FOLDER'], '{}.zip'.format(sess_id)), 'w') as zf:
                 files = form.photo.data
                 imgfiles = []
                 outfilenames = []
@@ -109,9 +107,9 @@ def handle_upload(name=None):
                         index = filename.index('.')
                         outfile = filename[:index] + sess_id + filename[index:]
                         outfilenames.append(outfile)
+                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
                         npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
                         zip_image(outfile, sess_id, npimg)
-                        print(npimg.shape)
                         imgfiles.append(npimg)
                 if len(imgfiles) == 0:
                     return redirect(request.url)
@@ -146,7 +144,8 @@ def handle_upload(name=None):
                 filedims[f] = {}
             filedims[f]['height'] = i.shape[0]
             filedims[f]['width'] = i.shape[1]
-            filedets[f][count] = d.tolist()
+            print(d)
+            filedets[f][count] = d
             count += 1
         session['filedets'] = json.dumps(filedets)
         session['filedims'] = json.dumps(filedims)
@@ -240,7 +239,7 @@ def select_pert():
         else:
             print('error')
         with FileLock('ids.txt.lock', timeout=10.0) as fl:
-            with open('ids.txt', 'rw') as userids:
+            with open('ids.txt', 'w') as userids:
                 userids.write('{} - {} - {} - {}\n'.format(sess_id, datetime.utcnow(), attk, norm))
         np.savez(os.path.join(app.config['UPLOAD_FOLDER'], '{}data.npz'.format(sess_id)),
                  sess_id=sess_id,
@@ -252,23 +251,23 @@ def select_pert():
                  amplification=amplification,
                  attack=attack,
                  norm=norm)
-        with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'a') as zf:
+        with ZipFile(os.path.join(app.config['UPLOAD_FOLDER'], '{}.zip'.format(sess_id)), 'a') as zf:
             zf.write(os.path.join(app.config['UPLOAD_FOLDER'], '{}data.npz'.format(sess_id)), '{}data.npz'.format(sess_id))
 
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            k = paramiko.RSAKey.from_private_key_file('~/.ssh/id_rsa')
-            ssh.connect(HOST, username=USERNAME, pkey = k)
-            sftp = ssh.open_sftp()
-            sftp.chdir(REM_ROOT)
-            localfile = os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id))
-            remotefile = os.path.join(REM_ROOT, 'static', 'temp', '{}.zip'.format(sess_id))
-            sftp.put(localfile, remotefile)
-            if sftp:
-                sftp.close()
-        except Exception as e:
-            print(e)
+        # try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        k = paramiko.RSAKey.from_private_key_file('/home/asianturtle/.ssh/id_rsa')
+        ssh.connect(HOST, username=USERNAME, pkey = k)
+        sftp = ssh.open_sftp()
+        sftp.chdir(REM_ROOT)
+        localfile = os.path.join(app.config['UPLOAD_FOLDER'], '{}.zip'.format(sess_id))
+        remotefile = os.path.join(REM_ROOT, 'static', 'temp', '{}.zip'.format(sess_id))
+        sftp.put(localfile, remotefile)
+        if sftp:
+            sftp.close()
+        # except Exception as e:
+            # print(e)
 
         return redirect(url_for('download'))
 

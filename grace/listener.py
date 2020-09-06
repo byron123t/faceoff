@@ -3,6 +3,7 @@ import os
 import imageio
 from filelock import FileLock
 from zipfile import ZipFile
+from grace import Config
 
 
 HOST = '10.0.0.24'
@@ -11,25 +12,25 @@ MIDPATH = 'midpath'
 OUTPATH = 'outpath'
 tf_config = Config.set_gpu('0')
 while True:
-	files = os.listdir(INPATH)
-	if files:
-		filename = os.path.join(INPATH, files[0])
-		fl = FileLock(filename + '.lock', timeout=0)
-		try:
-			fl.acquire()
-		except FileLockException:
-			continue
-		with ZipFile(filename, 'r') as zf:
-			dir_path = os.path.join(MIDPATH, filename.replace('.zip'))
-			if not os.path.exists(dir_path):
-				os.mkdir(dir_path)
-			ZipFile.extractall(dir_path)
-		os.remove(filename)
-		fl.release()
-	    for i, f in os.listdir(dir_path):
-	        if f.endswith('.npz'):
-	            data = np.load(os.path.join(zipfolder, f), allow_pickle=True)
-		lfw_pairs = recognize(data)
+    files = os.listdir(INPATH)
+    if files:
+        filename = os.path.join(INPATH, files[0])
+        fl = FileLock(filename + '.lock', timeout=0)
+        try:
+            fl.acquire()
+        except FileLockException:
+            continue
+        with ZipFile(filename, 'r') as zf:
+            dir_path = os.path.join(MIDPATH, filename.replace('.zip'))
+            if not os.path.exists(dir_path):
+                os.mkdir(dir_path)
+            ZipFile.extractall(dir_path)
+        os.remove(filename)
+        fl.release()
+        for i, f in os.listdir(dir_path):
+            if f.endswith('.npz'):
+                data = np.load(os.path.join(zipfolder, f), allow_pickle=True)
+        lfw_pairs = recognize(data)
         params = Config.set_parameters(attack=data['attack'],
                                        norm=data['norm'],
                                        margin=data['margin'],
