@@ -4,12 +4,18 @@ import imageio
 from filelock import FileLock
 from zipfile import ZipFile
 from grace import Config
+from multiprocessing import Pool
+from grace.Attack import outer_attack
 
 
-HOST = '10.0.0.24'
-INPATH = 'inpath'
-MIDPATH = 'midpath'
-OUTPATH = 'outpath'
+HOST = '169.254.248.203'
+PORT = 22
+USERNAME = 'byron123t'
+REM_ROOT = '/mnt/c/Users/byron.LAPTOP-6A9A5QNU/Desktop/GitHub/faceoff'
+
+INPATH = 'temp/infinal'
+MIDPATH = 'temp/midfinal'
+OUTPATH = 'temp/outfinal'
 tf_config = Config.set_gpu('0')
 while True:
     files = os.listdir(INPATH)

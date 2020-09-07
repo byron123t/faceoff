@@ -1,8 +1,6 @@
 import numpy as np
-from faceoff import Config
-from faceoff.Crop import apply_delta
-from faceoff.Utils import transpose_back
-from faceoff.Utils import save_image
+from grace import Config
+from grace.Utils import save_image, apply_delta, transpose_back
 import argparse
 
 
