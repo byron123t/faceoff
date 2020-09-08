@@ -16,6 +16,7 @@ from wtforms import Form, BooleanField, StringField, validators, MultipleFileFie
 from wtforms.csrf.session import SessionCSRF
 from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField
+from waitress import serve
 from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
@@ -366,3 +367,7 @@ def pre_proc_attack(attack, norm, margin, amplification, selected, sess_id):
 @app.route('/about', methods=['GET'])
 def about():
     return render_template('about.html')
+
+
+if __name__ == '__main__':
+    server(app, host='0.0.0.0', port=8000)
