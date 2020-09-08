@@ -62,28 +62,26 @@ def save_image(done_imgs,
             print(orig)
 
 
-def face_detection(imgfiles, outfilenames, index):
+def face_detection(imgfiles, outfilenames, sess_id):
     import tensorflow as tf
-    tf_config = Config.set_gpu('0')
+    from mtcnn import MTCNN
     filenames = []
     imgs = []
     dets = []
     base_faces = []
-    with tf.Graph().as_default():
-        sess = tf.Session(config=tf_config)
-        with sess.as_default():
-            pnet, rnet, onet = create_mtcnn(sess, None)
-    tf.reset_default_graph()
-    face, det, count = crop_face(imgfiles[index], pnet, rnet, onet, outfilenames[index])
+    detector = MTCNN()
+    face, det, count = crop_face(imgfiles, detector, outfilenames, sess_id)
     if face is not None:
         for f, d in zip(face, det):
-            img = np.around(imgfiles[index] / 255.0, decimals=12)
+            img = np.around(imgfiles / 255.0, decimals=12)
             base_faces.append(f)
             imgs.append(img)
             dets.append(d)
-            filenames.append(outfilenames[index])
+            filenames.append(outfilenames)
 
-    return base_faces, filenames, imgs, dets, count
+    print(len(base_faces), filenames, len(imgs), dets, count)
+    return base_faces, filenames, img, dets, count
+
 
 def load_images(params, selected, sess_id):
     """
@@ -113,7 +111,7 @@ def load_images(params, selected, sess_id):
         for i in face_matches['faces']:
             file = filename_dict[i]
             index = file.index('.')
-            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(file[:index], counts[i])))
+            face = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, file[:index], counts[i])))
             face = np.around(np.transpose(face, (2,0,1))/255.0, decimals=12)
             face = (face-0.5)*2
             img = imageio.imread(os.path.join(Config.UPLOAD_FOLDER, file))
@@ -136,7 +134,7 @@ def load_images(params, selected, sess_id):
             temp_files = []
             for file in target_files:
                 temp_files.append(os.path.join(target_path, file))
-            person['target'] = read_face_from_aligned(temp_files[:8], params)
+            person['target'] = read_face_from_aligned(temp_files[:1], params)
 
             person['base']['face'] = np.squeeze(np.array(person['base']['face']))
             if len(person['base']['face'].shape) <= 3:
@@ -145,6 +143,11 @@ def load_images(params, selected, sess_id):
             person['base']['source'] = np.squeeze(np.array(person['base']['source']))
             if len(person['base']['source'].shape) <= 3:
                 person['base']['source'] = np.expand_dims(person['base']['source'], axis=0)
+            else:
+                person['base']['source'] = person['base']['source'][0]
+                person['base']['source'] = np.expand_dims(person['base']['source'], axis=0)
+            if len(person['target'].shape) <= 3:
+                person['target'] = np.expand_dims(person['base']['face'], axis=0)
             people.append(person)
 
     return people

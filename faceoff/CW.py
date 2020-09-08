@@ -413,6 +413,10 @@ class CW:
                     print('Img: {}, decrease const between {} and {}'.format(e, temp_const, CONST[e]))
                 else:
                     #failure condition, increase const
+                    if best_delta[e] is None:
+                        best_adv[e] = best_adv_inner[e]
+                        best_delta[e] = best_delta_inner[e]
+                        best_const[e] = CONST[e]
                     temp_const = CONST[e]
                     const_low[e] = max(CONST[e], const_low[e])
                     if const_high[e] < 1e9:

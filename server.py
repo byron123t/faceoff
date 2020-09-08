@@ -6,19 +6,26 @@ import numpy as np
 import cv2
 from uuid import uuid4
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 from faceoff.Utils import face_detection, face_recognition, match_closest, load_images, save_image
 from faceoff import Config
-from faceoff.Attack import outer_attack, amplify
+from faceoff.listener import attack_listener, recognize_listener
+from faceoff.Detect import detect_listener
+from faceoff.Attack import amplify
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
 from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField
-from datetime import timedelta
 from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
-import redis
-from rq import Queue, Worker, Connection
+from redis import Redis
+import string
+import random
+import time
+from datetime import datetime
+from filelock import FileLock
+from rq import Queue, Worker, Connection, Retry
 
 
 ROOT = os.path.abspath('.')
@@ -31,13 +38,14 @@ RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 app = Flask(__name__)
-r = redis.Redis()
-q = Queue(connection=r)
+gpu = Queue('gpu', connection=Redis())
+cpu = Queue('cpu', connection=Redis())
 app.config['SECRET_KEY'] = secrets.token_bytes(16)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RECAPTCHA_PUBLIC_KEY'] = RECAPTCHA_PUBLIC_KEY
 app.config['RECAPTCHA_PRIVATE_KEY'] = RECAPTCHA_PRIVATE_KEY
+app.config['TRAP_HTTP_EXCEPTIONS']=True
 
 
 class DetectFormBase(FlaskForm):
@@ -59,6 +67,18 @@ class PhotoForm(FlaskForm):
     recaptcha = RecaptchaField()
 
 
+class BlankForm(FlaskForm):
+    placeholder = StringField('placeholder', default='')
+
+
+class DownloadForm(FlaskForm):
+    download = StringField('download', default='')
+
+
+class LoopForm(FlaskForm):
+    doagain = StringField('doagain', default='')
+
+
 class PertForm(FlaskForm):
     perts = IntegerRangeField('perts', default=2)
     attacks = IntegerRangeField('attacks', default=0)
@@ -69,26 +89,46 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in EXTENSIONS
 
 
-def _face_recognition(faces, threshold, batch_size):
-    with Pool(processes=1) as pool:
-        return pool.apply(face_recognition, (faces, threshold, batch_size))
-
-
-def _session_attr(key):
+def session_attr(key):
     try:
         return session[key]
     except KeyError:
         return None
 
 
+def error_message(message):
+    session['error'] = message
+    return redirect(url_for('handle_upload'))
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_bad_request(e):
+    return error_message('Uploaded files must be under 5MB')
+
+
 @app.route('/', methods=['GET', 'POST'])
-def handle_upload(name=None):
+def handle_upload():
     form = PhotoForm()
-    sess_id = str(uuid4())
+    if 'error' in session:
+        err = session['error']
+        session.pop('error')
+        return render_template('index.html', form=form, error=err)
     if request.method == 'POST':
+        sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+        try:
+            with FileLock('ids.txt.lock', timeout=10.0) as fl:
+                with open('ids.txt', 'r') as userids:
+                    txt = userids.read()
+                    while sess_id in userids:
+                        # sess_id = str(uuid4())
+                        sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+                with open('ids.txt', 'a') as userids:
+                    userids.write('{}\n'.format(sess_id))
+        except Exception as e:
+            print(e)
+            os.remove('ids.txt.lock')
         if form.is_submitted():
             files = form.photo.data
-            imgfiles = []
             outfilenames = []
             for file in files:
                 filename = secure_filename(file.filename)
@@ -97,73 +137,85 @@ def handle_upload(name=None):
                     outfile = filename[:index] + sess_id + filename[index:]
                     outfilenames.append(outfile)
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
-                    npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
-                    print(npimg.shape)
-                    imgfiles.append(npimg)
-            if len(imgfiles) == 0:
-                return redirect(request.url)
+
+            if len(outfilenames) == 0:
+                return error_message('Please upload at least 1 file of the following type [.jpeg .jpg .png .gif]')
         else:
             return redirect(request.url)
-        with Pool(processes=3) as pool:
-            func = partial(face_detection, imgfiles, outfilenames)
-            results = pool.map(func, (range(len(imgfiles))))
+        session['outfilenames'] = outfilenames
+        session['sess_id'] = sess_id
+        return redirect(url_for('uploading'))
+    else:
+        return render_template('index.html', form=form)
+
+
+@app.route('/uploading', methods=['GET', 'POST'])
+def uploading():
+    sess_id = session_attr('sess_id')
+    outfilenames = session_attr('outfilenames')
+    if sess_id is None:
+        return error_message('Sorry, your session has expired.')
+    form = BlankForm()
+    if request.method == 'POST':
+        try:
+            with FileLock('ids.txt.lock', timeout=10.0) as fl:
+                with open('ids.txt', 'r') as userids:
+                    text = userids.read()
+                    if '{}loading'.format(sess_id) in text:
+                        return redirect(url_for('detected_faces'))
+                    new_text = text.replace(sess_id, sess_id+'loading')
+                with open('ids.txt', 'w') as userids:
+                    userids.write(new_text)
+        except Exception as e:
+            print(e)
+            os.remove('ids.txt.lock')
+        imgfiles = []
+        for outfile in outfilenames:
+            npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
+            imgfiles.append(npimg)
+        jobs = []
         base_faces = []
         filenames = []
         imgs = []
+        img_map = {}
         dets = []
         counts = []
-        for i, val in enumerate(results):
-            base_faces.extend(val[0])
-            filenames.extend(val[1])
-            imgs.extend(val[2])
-            dets.extend(val[3])
-            for j in range(val[4]):
+        for i in range(len(imgfiles)):
+            jobs.append(cpu.enqueue(detect_listener, imgfiles[i], outfilenames[i], sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
+        for i, job in enumerate(jobs):
+            while job.result is None:
+                time.sleep(1)
+            b, f, im, d, c = job.result
+            base_faces.extend(b)
+            filenames.extend(f)
+            imgs.append(im)
+            dets.extend(d)
+            for j in range(c):
                 counts.append(j)
-
-        faces = np.squeeze(np.array(base_faces))
-        if len(imgs) <= 1:
-            faces = np.expand_dims(faces, axis=0)
-        tf_config = Config.set_gpu('0')
-        embeddings, buckets, means = _face_recognition(faces, 13, 10)
-        pairs = match_closest(means)
-        lfw_pairs = {}
-        for key, val in pairs.items():
-            lfw_pairs[key] = {'pair': val, 'faces': buckets[key]}
-        print(pairs)
-        print(buckets)
-        filedets = {}
-        filedims = {}
-        count = 0
-        for f, d, i in zip(filenames, dets, imgs):
-            if f not in filedets:
-                filedets[f] = {}
-                filedims[f] = {}
-            filedims[f]['height'] = i.shape[0]
-            filedims[f]['width'] = i.shape[1]
-            filedets[f][count] = d.tolist()
-            count += 1
-        print(filedets)
-        print(filedims)
-        np.savez(os.path.join(app.config['UPLOAD_FOLDER'], sess_id + 'data.npz'), pairs=lfw_pairs, dets=filedets, filenames=filenames, counts=counts)
+                img_map[j] = i
+        job = gpu.enqueue(recognize_listener, base_faces, filenames, dets, imgs, counts, img_map, sess_id)
+        while job.result is None:
+            time.sleep(1)
+        filedets, filedims = job.result
         session['filedets'] = json.dumps(filedets)
         session['filedims'] = json.dumps(filedims)
-        session['sess_id'] = sess_id
         return redirect(url_for('detected_faces'))
     else:
-        return render_template('index.html', name=name, form=form)
+        return render_template('uploading.html', form=form)
 
 
 @app.route('/detected_faces', methods=['GET', 'POST'])
 def detected_faces():
     count = 0
-    filedets = _session_attr('filedets')
-    filedims = _session_attr('filedims')
+    sess_id = session_attr('sess_id')
+    filedets = session_attr('filedets')
+    filedims = session_attr('filedims')
 
-    if filedets is not None and filedims is not None:
+    if sess_id and filedets and filedims:
         filedets = json.loads(filedets)
         filedims = json.loads(filedims)
     else:
-        return redirect(url_for('handle_upload'))
+        return error_message('Sorry, your session has expired.')
     for key, val in filedets.items():
         count += len(val.keys())
         print(count)
@@ -186,10 +238,10 @@ def detected_faces():
 
 @app.route('/select_pert', methods=['GET', 'POST'])
 def select_pert():
-    sess_id = _session_attr('sess_id')
-    selected = _session_attr('selected')
+    sess_id = session_attr('sess_id')
+    selected = session_attr('selected')
     if sess_id is None or selected is None:
-        return redirect(url_for('handle_upload'))
+        return error_message('Sorry, your session has expired.')
     form = PertForm()
     att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
                 'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
@@ -200,52 +252,44 @@ def select_pert():
     if request.method == 'GET':
         return render_template('pert.html', form=form, att_desc=att_desc, per_desc=per_desc, att_file=att_file, per_file=per_file)
     else:
-        print(request.form)
-        print(form.perts.data)
-        print(form.attacks.data)
-        attk = form.attacks.data
-        pert = form.perts.data
-        if attk == 0:
-            attack = 'CW'
-            norm = 2
-        elif attk == 1:
-            attack = 'PGD'
-            norm = 2
-        else:
-            print('error')
-        if pert == 0:
-            margin = 5
-            amplification = 5
-        elif pert == 1:
-            margin = 5
-            amplification = 4.5
-        elif pert == 2:
-            margin = 5
-            amplification = 4
-        elif pert == 3:
-            margin = 5
-            amplification = 3.5
-        elif pert == 4:
-            margin = 5
-            amplification = 3
-        else:
-            print('error')
-        params = Config.set_parameters(attack=attack,
-                                       norm=norm,
-                                       margin=margin,
-                                       amplification=amplification)
-        print(selected)
-        people = load_images(params=params,
-                             selected=selected,
-                             sess_id=sess_id)
-        with Pool(processes=2) as pool:
-            func = partial(outer_attack, params, people)
-            results = pool.map(func, (range(len(people))))
+        session['attack'] = form.attacks.data
+        session['pert'] = form.perts.data
+        return redirect(url_for('download'))
+
+
+@app.route('/download', methods=['GET', 'POST'])
+def download():
+    sess_id = session_attr('sess_id')
+    if sess_id is None:
+        return error_message('Sorry, your session has expired.')
+    form = BlankForm()
+    if request.method == 'GET':
+        return render_template('download.html', form=form, sess_id=sess_id)
+    else:
+        attack, norm, margin, amplification, selected = parse_form()
+        try:
+            with FileLock('ids.txt.lock', timeout=10.0) as fl:
+                with open('ids.txt', 'r') as userids:
+                    text = userids.read()
+                    print(text)
+                    print('{} - {} - {}'.format(sess_id, attack, norm))
+                    if '{} - {} - {}'.format(sess_id, attack, norm) in text:
+                        return redirect(url_for('finish'))
+                    new_text = text.replace(sess_id+'loading', '{} - {} - {} - {}'.format(sess_id, attack, norm, datetime.utcnow()))
+                with open('ids.txt', 'w') as userids:
+                    userids.write(new_text)
+        except Exception as e:
+            print(e)
+            os.remove('ids.txt.lock')
+        params, people = pre_proc_attack(attack, norm, margin, amplification, selected, sess_id)
+        jobs = []
         done_imgs = {}
-        print('finished!')
-        for i, val in enumerate(results):
-            person = val[0]
-            delta = val[1]
+        for i in range(len(people)):
+            jobs.append(gpu.enqueue(attack_listener, params, people[i], sess_id, job_timeout=1500, retry=Retry(max=10, interval=1)))
+        for i in jobs:
+            while i.result is None:
+                time.sleep(1)
+            person, delta = i.result
             done_imgs = amplify(params=params,
                                 face=person['base']['face'],
                                 delta=delta,
@@ -253,21 +297,70 @@ def select_pert():
                                 person=person,
                                 done_imgs=done_imgs)
         save_image(done_imgs=done_imgs,
-                   sess_id=sess_id)
+               sess_id=sess_id)
+        return redirect(url_for('finish'))
 
-        return redirect(url_for('download'))
 
-
-@app.route('/download', methods=['GET', 'POST'])
-def download():
-    sess_id = _session_attr('sess_id')
+@app.route('/finish', methods=['GET', 'POST'])
+def finish():
+    sess_id = session_attr('sess_id')
     if sess_id is None:
-        return redirect(url_for('handle_upload'))
+        return error_message('Sorry, your session has expired.')
+    form1 = DownloadForm()
+    form2 = LoopForm()
     if request.method == 'GET':
-        return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
+        return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
-        print(request.form)
-        return redirect(url_for('handle_upload'))
+        print(form1.data)
+        print(form2.data)
+        if form1.data['download'] == 'yes':
+            return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
+        elif form2.data['doagain'] == 'yes':
+            return redirect(url_for('handle_upload'))
+
+
+def parse_form():
+    attk = session_attr('attack')
+    pert = session_attr('pert')
+    selected = session_attr('selected')
+    if attk == 0:
+        attack = 'CW'
+        norm = 2
+    elif attk == 1:
+        attack = 'PGD'
+        norm = 2
+    else:
+        print('error')
+    if pert == 0:
+        margin = 5
+        amplification = 4.75
+    elif pert == 1:
+        margin = 5
+        amplification = 4.00
+    elif pert == 2:
+        margin = 5
+        amplification = 3.25
+    elif pert == 3:
+        margin = 5
+        amplification = 2.50
+    elif pert == 4:
+        margin = 5
+        amplification = 1.75
+    else:
+        print('error')
+    return attack, norm, margin, amplification, selected
+
+
+def pre_proc_attack(attack, norm, margin, amplification, selected, sess_id):
+    params = Config.set_parameters(attack=attack,
+                                   norm=norm,
+                                   margin=margin,
+                                   amplification=amplification,
+                                   mean_loss='embedding')
+    people = load_images(params=params,
+                         selected=selected,
+                         sess_id=sess_id)
+    return params, people
 
 
 @app.route('/about', methods=['GET'])

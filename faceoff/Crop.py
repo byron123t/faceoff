@@ -27,7 +27,7 @@ def pre_proc(img, params):
     return img_CHW
 
 
-def crop_face(img, pnet, rnet, onet, outfilename):
+def crop_face(img, detector, outfilename, sess_id):
     """
     Description
 
@@ -44,8 +44,8 @@ def crop_face(img, pnet, rnet, onet, outfilename):
 
     print('Trying to find a bounding box')
     try:
-        bounding_boxes, _ = detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
-        nrof_faces = bounding_boxes.shape[0]
+        bounding_boxes = detector.detect_faces(img)
+        nrof_faces = len(bounding_boxes)
     except:
         print('Error detecting')
         return None, None
@@ -55,8 +55,10 @@ def crop_face(img, pnet, rnet, onet, outfilename):
     dets = []
     faces = []
     count = 0
-    for i in range(nrof_faces):
-        det = bounding_boxes[i]
+    for b in bounding_boxes:
+        det = b['box']
+        det[2] += det[0]
+        det[3] += det[1]
         img_size = np.asarray(img.shape)[0:2]
 
         bb = np.zeros(4, dtype=np.int32)
@@ -68,7 +70,7 @@ def crop_face(img, pnet, rnet, onet, outfilename):
         scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
         scaled = scaled[...,::-1]
         index = outfilename.index('.')
-        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}_{}.png'.format(outfilename[:index], count)),scaled)
+        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
         count += 1
         
         face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)
@@ -102,9 +104,9 @@ def apply_delta(delta, img, det, params):
     delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), params['interpolation'])
     print(delta_up.shape)
     print(img.shape)
-    img[bb[1]:bb[3],bb[0]:bb[2],:] += delta_up
-    img[bb[1]:bb[3],bb[0]:bb[2],:] = np.maximum(img[bb[1]:bb[3],bb[0]:bb[2],:], 0)
-    img[bb[1]:bb[3],bb[0]:bb[2],:] = np.minimum(img[bb[1]:bb[3],bb[0]:bb[2],:], 1)
+    img[bb[1]:bb[3],bb[0]:bb[2],:3] += delta_up
+    img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.maximum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 0)
+    img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.minimum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 1)
 
     return img
 

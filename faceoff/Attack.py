@@ -72,7 +72,9 @@ def find_adv(sess,
     num_base = face.shape[0]
     num_src = face_stack_source.shape[0]
     num_target = face_stack_target.shape[0]
-
+    print('face', face.shape)
+    print('target', face_stack_target.shape)
+    print('source', face_stack_source.shape)
     if params['attack'] == 'CW':
         cw_attack = CW(sess=sess,
                        model=fr_model,
@@ -127,8 +129,7 @@ def find_adv(sess,
 
 
 def outer_attack(params,
-                 people,
-                 index):
+                 person):
     import tensorflow as tf
     from keras import backend
     from faceoff.Models import get_model
@@ -139,7 +140,6 @@ def outer_attack(params,
     """
     tf_config = Config.set_gpu('0')
     
-    person = people[index]
     if len(person['base']['face']) > 0:
         backend.clear_session()
         tf.reset_default_graph()

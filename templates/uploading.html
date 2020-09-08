@@ -44,10 +44,7 @@
     <main role="main">    
       <!-- Section 1 -->
       <section class="section text-center"> 
-        <h2 class="text-size-50 text-center text-white">Please wait while Face-Off hides your face</h2>
-        <div class="s-12 m-10 l-8 text-center center">
-          <p class="text-white margin-bottom-10 text-size-20">Your download will appear shortly...</p>
-        </div>
+        <h2 class="text-size-50 text-center text-white">Please wait while Face-Off finds the faces in your uploaded files</h2>
         <form id="placeholder" enctype="multipart/form-data" action="" method="POST">
           {{form.csrf_token}}
           {{form.placeholder(hidden="true")}}

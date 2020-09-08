@@ -1,7 +1,7 @@
 venv/
 __pycache__/
 faceoff.egg-info/
-grace/dets/
-grace/face_model_caffe_converted.h5
-grace/lfw/
+faceoff/dets/
+faceoff/face_model_caffe_converted.h5
+faceoff/lfw/
 static/temp/

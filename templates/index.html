@@ -40,7 +40,7 @@
         </div>
       </nav>
     </header>
-    
+
     <!-- MAIN -->
     <main role="main">    
       <!-- Main Header -->
@@ -51,6 +51,7 @@
               <img src="{{ url_for('static', filename='img/header4-8.jpg') }}" style="object-fit: cover;" alt="">
               <div class="carousel-content">
                 <div class="content-center-vertical line">
+                  <p id="error" hidden>{{error}}</p>
                   <div class="margin-top-bottom-80">
                     <!-- Title -->
                     <h1 class="text-white text-center margin-bottom-30 text-size-70 text-m-size-30 text-line-height-1">Face-Off</h1>
@@ -72,7 +73,7 @@
                           {{form.recaptcha}}
                         </form>
                       </div>       
-                    </div>  
+                    </div>
                   </div>
                 </div>
               </div>
@@ -235,5 +236,10 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>
+    {% if error is defined %}
+      <script type="text/javascript">
+        alert($('#error').html());
+      </script>
+    {% endif %}
   </body>
 </html>

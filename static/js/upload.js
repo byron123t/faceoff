@@ -78,7 +78,7 @@ $('#photo').live('change', (function(){
 
 $(document).ready(function(){
     var window_width = $(window).width() - 40;
-    var window_height = $(window).height() / 100 * 60;
+    var window_height = $(window).height() / 100 * 50;
     prev_window_width = window_width;
     prev_window_height = window_height;
     $('.det-image').each(function() {
@@ -112,7 +112,7 @@ $(document).ready(function(){
 
 $(window).on('resize', function(){
     var window_width = $(window).width() - 40;
-    var window_height = $(window).height() / 100 * 60;
+    var window_height = $(window).height() / 100 * 50;
     prev_window_width = window_width;
     prev_window_height = window_height;
     $('.det-image').each(function() {
@@ -144,30 +144,3 @@ $(window).on('resize', function(){
             });
         }
 })});
-
-var attack_steps = [
-    "Slow (~50s / unique face) = Smaller Overall Distortion",
-    "Quick (~10s / unique face) = Larger Overall Distortion",
-];
-
-var pert_steps = [
-    "Heavy Distortion = Most Privacy",
-    "More Distortion = More Privacy",
-    "Some Distortion = Moderate Privacy",
-    "Less Distortion = Less Privacy",
-    "Light Distortion = Least Privacy",
-];
-
-
-function attackUpdate(value) {
-    $('#attack-display').html(attack_steps[value]);
-}
-
-function pertUpdate(value) {
-    $('#pert-display').html(pert_steps[value]);
-}
-
-$(document).live('ready', (function(){
-    $('#attack-slide')[0].classList.add('');
-    $('#pert-slide')[0].classList.add('');
-}));
