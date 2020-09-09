@@ -2,16 +2,7 @@ import numpy as np
 from cleverhans.model import Model, CallableModelWrapper
 from cleverhans.attacks import Attack
 import tensorflow as tf
-from abc import ABCMeta
-import warnings
-import collections
-
-import cleverhans.utils as utils
-from cleverhans.model import Model, CallableModelWrapper
-from backend.TVLoss import get_tv_loss
 from cleverhans.utils_tf import clip_eta
-
-_logger = utils.create_logger("cleverhans.attacks")
 
 
 class PGD(Attack):
@@ -260,9 +251,6 @@ class PGD(Attack):
 
         self.sanity_checks = sanity_checks
 
-        if len(kwargs.keys()) > 0:
-            warnings.warn("kwargs is unused and will be removed on or after 2019-04-26.")
-         
         #why return a true statement?
         return True 
 

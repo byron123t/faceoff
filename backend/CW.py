@@ -5,11 +5,9 @@
 ## This program is licenced under the BSD 2-Clause licence,
 ## contained in the LICENCE file in this directory.
 
-import sys, math
+import math
 import tensorflow as tf
 import numpy as np
-from backend.TVLoss import get_tv_loss
-from cleverhans.compat import reduce_sum, reduce_max
 from backend import Config
 
 BINARY_SEARCH_STEPS = 9  # number of times to adjust the constant with binary search
@@ -239,20 +237,12 @@ class CW:
                 self.loss1 = -tf.reduce_sum(tf.square(self.outputNew - self.outputTarg),1)
 
         #add condition to check if smoothing term is needed/not
-        if not self.TV_FLAG:
-            self.loss3 = 0
-        else:
-            if self.model_type == 'large':
-                transpose_newimg = tf.transpose(self.newimg, (0, 3, 1, 2))
-            else:
-                transpose_newimg = self.newimg
-            self.loss3 =  get_tv_loss(transpose_newimg)
 
         self.loss1 = tf.reduce_sum(self.const * self.loss1)
         self.loss2 = tf.reduce_sum(self.lpdist)
         self.loss4 = tf.reduce_sum(self.const * self.loss4)
 
-        self.loss = self.loss1 + self.loss2 + self.loss3 + self.loss4
+        self.loss = self.loss1 + self.loss2 + self.loss4
 
         start_vars = set(x.name for x in tf.global_variables())
         optimizer = tf.train.AdamOptimizer(self.LEARNING_RATE)
@@ -425,125 +415,3 @@ class CW:
                         CONST[e] *= 10
                     print('Img: {}, increase const between {} and {}'.format(e, temp_const, CONST[e]))
         return best_lp, best_const, best_adv, best_delta
-
-
-    def attack_batch_linf(self,
-                          imgs,
-                          target_imgs,
-                          src_imgs):
-        
-        
-        def doit(imgs, src_imgs, target_imgs, tt, CONST, batch_size):
-            # convert to tanh-space
-            '''
-            best_loss_inner = [1e10] * batch_size
-            best_adv_inner = [None] * batch_size
-            best_delta_inner = [None] * batch_size
-            best_dist_src = [None] * batch_size
-            best_dist_target = [None] * batch_size
-            best_lp_inner = [None] * batch_size
-            '''
-
-            best_loss_inner = LARGE
-            best_adv_inner = None
-            best_delta_inner = None
-            best_dist_src = None
-            best_dist_target = None
-            best_lp_inner = None
-
-            imgs = np.arctanh((imgs - self.boxplus) / self.boxmul * 0.999999)
-            face_stack_target = np.arctanh((target_imgs - self.boxplus) / self.boxmul * 0.999999)
-            face_stack_self = np.arctanh((src_imgs - self.boxplus) / self.boxmul * 0.999999)
-
-            
-            # initialize the variables
-            self.sess.run(self.init)
-            self.sess.run(self.setup, {self.assign_timg: imgs,
-                                       self.assign_const: CONST,
-                                       self.assign_targetdb: face_stack_target,
-                                       self.assign_selfdb: face_stack_self,
-                                       self.assign_tau: [tt]})
-            #terminate = False
-            return_flag = False
-            while CONST[0] < self.LARGEST_CONST:
-            #while not terminate:
-                # try solving for each value of the constant
-                print('try const', CONST[0])
-                for step in range(self.MAX_ITERATIONS):
-                    feed_dict={self.const: CONST}
-
-                    # perform the update step
-                    _, l, nimg, delta, dist_src, dist_target = self.sess.run([self.train,
-                                                                              self.loss,
-                                                                              self.newimg,
-                                                                              self.modifier_bounded,
-                                                                              self.src_loss,
-                                                                              self.target_loss],
-                                                                              # self.orig_loss],
-                                                                              feed_dict=feed_dict)
-                    if step%(self.MAX_ITERATIONS//10) == 0:
-                        print('Step: {}, Loss: {}'.format(step, l))
-                    
-                    if dist_src - dist_target >= self.MARGIN:
-                        #print("loss:", l)
-                        if l < best_loss_inner:
-                            best_loss_inner = l
-                            best_adv_inner = nimg
-                            best_delta_inner = delta
-                            best_dist_src = dist_src
-                            best_dist_target = dist_target
-                            best_lp_inner = np.linalg.norm(best_delta_inner)
-                            return_flag = True
-                    
-                if not return_flag:
-                    CONST[0] *= self.const_factor
-                else:
-                    return best_lp_inner, CONST, best_adv_inner, best_delta_inner
-            
-            return best_lp_inner, CONST, best_adv_inner, best_delta_inner
-
-
-        batch_size = imgs.shape[0]
-        
-        prev_lp = LARGE
-        prev_const = None
-        prev_adv = None
-        prev_delta = None
-        tau = 1.0
-        const = self.INITIAL_CONST
-        terminate = False
-        trials = 0
-        while tau > 1./256 or trials <= 2:
-            print("trial:", trials)
-            # try to solve given this tau value
-            res = doit(imgs, src_imgs, target_imgs, tau, const, batch_size)
-            lp, const, adv, delta = res
-            if lp != None and lp <= prev_lp:
-                prev_lp = lp
-                prev_const = const
-                prev_adv = adv
-                prev_delta = delta
-                
-            if self.REDUCE_CONST: const[0] /= 2
-
-            # the attack succeeded, reduce tau and try again
-            if prev_adv is not None:
-                actualtau = np.max(np.abs(prev_adv-imgs))
-
-                if actualtau < tau:
-                    tau = actualtau
-            else:
-                print("Attack Failure")
-                return [None], [None], [imgs], [None]
-
-            print("Tau",tau)
-
-            tau *= self.DECREASE_FACTOR
-            trials += 1
-        if prev_lp != LARGE:
-            print("Attack Success")
-            return [prev_lp], [prev_const], [prev_adv], [prev_delta]
-        else:
-            print("Attack Failure")
-            return [None], [None], [imgs], [None]
-

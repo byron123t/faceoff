@@ -1,9 +1,8 @@
 from backend import Config
 import os
 import numpy as np
-from backend.Attack import outer_attack, amplify
-from backend.Utils import save_image, face_detection, face_recognition, match_closest
-from functools import partial
+from backend.Attack import outer_attack
+from backend.Utils import face_recognition, match_closest
 from multiprocessing import Pool
 
 

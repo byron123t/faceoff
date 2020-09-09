@@ -1,8 +1,5 @@
-import sys
 import os
 import numpy as np
-import scipy.misc as ms
-from PIL import Image
 import imageio
 import cv2
 from backend import Config

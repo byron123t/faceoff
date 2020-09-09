@@ -2,8 +2,6 @@ import numpy as np
 from backend import Config
 from backend.Crop import apply_delta
 from backend.Utils import transpose_back
-from backend.Utils import save_image
-import argparse
 
 
 def amplify(params,
