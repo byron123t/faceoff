@@ -1,7 +1,6 @@
 import imageio
-import numpy as np 
+import numpy as np
 import os
-import math
 from backend import Config
 from backend.Crop import *
 from backend.Models import get_model
@@ -9,8 +8,6 @@ from tensorflow.keras import backend
 from zipfile import ZipFile
 import io
 from PIL import Image
-from functools import partial
-from multiprocessing import Pool
 
 
 def transpose_back(params,
@@ -168,10 +165,7 @@ class Evaluate:
 
 
 def compute_distance(person1, person2):
-    # cos_sim = np.dot(person1, person2) / (np.linalg.norm(person1) * np.linalg.norm(person2))
     distance = np.linalg.norm(person1 - person2)
-    # cos_sim = np.arccos(cos_sim) / math.pi * 60
-    # avg = (distance + cos_sim) / 2
     return distance
 
 

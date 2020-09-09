@@ -1,23 +1,16 @@
-from flask import Flask, flash, request, redirect, url_for, render_template, session, json, send_from_directory, Response
-import requests
+from flask import Flask, request, redirect, url_for, render_template, session, json, send_from_directory, Response
 import os
-import secrets
-import numpy as np
 import cv2
-from uuid import uuid4
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
-from backend.Utils import face_detection, face_recognition, match_closest, load_images, save_image
+from backend.Utils import load_images, save_image
 from backend import Config
 from backend.listener import attack_listener, recognize_listener
 from backend.Detect import detect_listener
 from backend.Attack import amplify
-from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
-from wtforms.csrf.session import SessionCSRF
+from wtforms import BooleanField, StringField, MultipleFileField, SubmitField
 from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField
-from functools import partial
-from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
 from redis import Redis, StrictRedis
 import string
@@ -26,16 +19,16 @@ import time
 import threading
 from datetime import datetime, timedelta
 from filelock import FileLock
-from rq import Queue, Worker, Connection, Retry
+from rq import Queue, Retry
 
 
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 app = Flask(__name__)

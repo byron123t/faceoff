@@ -1,42 +1,7 @@
 import os, cv2
 import numpy as np
-from timeit import default_timer as timer
 
 
-class Benchmark:
-    """Stores the start and end times of execution for performance metrics."""
-    def __init__(self):
-        self.start = {}
-        self.end = {}
-
-    def mark(self, message=''):
-        """
-        Stores the start or end time depending on which call.
-        Prints the execution time.
-        Usage: 
-            Benchmark.mark('message to print')
-            Code to benchmark...
-            Benchmark.mark('message to print')
-
-        Keyword arguments:
-        message -- a key for the dict and message to print
-        """
-        if message not in self.start:
-            self.start[message] = -1
-            self.end[message] = -1
-        if self.start[message] is -1:
-            self.start[message] = timer()
-        else:
-            if self.end[message] is -1:
-                self.end[message] = timer()
-            print('{message:{fill}{align}{width}}-{time}'.format(message=message,
-                fill='-', align='<', width=50,
-                time=(self.end[message] - self.start[message])))
-            self.start[message] = -1
-            self.end[message] = -1
-
-S3_DIR = 'https://s3.amazonaws.com/797qjz1donyyji5r4n'
-S3_BUCKET = '797qjz1donyyji5r4n'
 ROOT = os.path.abspath('./backend')
 ALIGN_96_DIR = 'lfw/lfw-aligned-96'
 ALIGN_160_DIR = 'half_celeb160'
@@ -61,8 +26,6 @@ API_PEOPLE = ['barack', 'leo', 'matt', 'melania', 'morgan', 'taylor']
 PAIRS = {'barack': 'morgan', 'mark': 'bill', 'matt': 'bill', 'taylor': 'jenn',
          'melania': 'jenn', 'jenn': 'melania', 'bill': 'barack', 'morgan':
          'bill', 'leo': 'bill', 'meryl': 'jenn'}
-
-BM = Benchmark()
 
 
 def string_to_bool(arg):

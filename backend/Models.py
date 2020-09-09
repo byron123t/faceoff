@@ -1,6 +1,6 @@
 import os
 from backend import Config
-from keras.models import load_model, model_from_json
+from keras.models import load_model
 
 
 def get_model():
