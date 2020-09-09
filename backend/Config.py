@@ -37,7 +37,7 @@ class Benchmark:
 
 S3_DIR = 'https://s3.amazonaws.com/797qjz1donyyji5r4n'
 S3_BUCKET = '797qjz1donyyji5r4n'
-ROOT = os.path.abspath('./faceoff')
+ROOT = os.path.abspath('./backend')
 ALIGN_96_DIR = 'lfw/lfw-aligned-96'
 ALIGN_160_DIR = 'half_celeb160'
 VGG_ALIGN_160_DIR = 'small-vgg-align-train-160'

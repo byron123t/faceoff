@@ -1,4 +1,4 @@
-from faceoff.Utils import face_detection
+from backend.Utils import face_detection
 from multiprocessing import Pool
 
 

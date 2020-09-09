@@ -7,11 +7,11 @@ import cv2
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
-from faceoff.Utils import face_detection, face_recognition, match_closest, load_images, save_image
-from faceoff import Config
-from faceoff.listener import attack_listener, recognize_listener
-from faceoff.Detect import detect_listener
-from faceoff.Attack import amplify
+from backend.Utils import face_detection, face_recognition, match_closest, load_images, save_image
+from backend import Config
+from backend.listener import attack_listener, recognize_listener
+from backend.Detect import detect_listener
+from backend.Attack import amplify
 from wtforms import Form, BooleanField, StringField, validators, MultipleFileField, widgets, RadioField, HiddenField, SubmitField
 from wtforms.csrf.session import SessionCSRF
 from wtforms.fields.html5 import IntegerRangeField
@@ -23,7 +23,8 @@ from redis import Redis
 import string
 import random
 import time
-from datetime import datetime
+import threading
+from datetime import datetime, timedelta
 from filelock import FileLock
 from rq import Queue, Worker, Connection, Retry
 
@@ -40,8 +41,9 @@ RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 app = Flask(__name__)
 gpu = Queue('gpu', connection=Redis())
 cpu = Queue('cpu', connection=Redis())
-app.config['SECRET_KEY'] = secrets.token_bytes(16)
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+r = redis.StrictRedis(host='localhost', port=6379, password='', decode_responses=True)
+app.config['SECRET_KEY'] = b'\xcd u\xd5\xb4f 5\x18e\x1b\x0f\xf8\xee\x97\xd3'
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RECAPTCHA_PUBLIC_KEY'] = RECAPTCHA_PUBLIC_KEY
 app.config['RECAPTCHA_PRIVATE_KEY'] = RECAPTCHA_PRIVATE_KEY
@@ -84,6 +86,18 @@ class PertForm(FlaskForm):
     attacks = IntegerRangeField('attacks', default=0)
 
 
+class ExportingThread(threading.Thread):
+    def __init__(self):
+        self.progress = 0
+        super().__init__()
+
+    def run(self):
+        # Your exporting stuff goes here ...
+        for _ in range(10):
+            time.sleep(1)
+            self.progress += 10
+
+
 def allowed_file(filename):
     return '.' in filename and \
         filename.rsplit('.', 1)[1].lower() in EXTENSIONS
@@ -108,6 +122,8 @@ def handle_bad_request(e):
 
 @app.route('/', methods=['GET', 'POST'])
 def handle_upload():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(minutes=30)
     form = PhotoForm()
     if 'error' in session:
         err = session['error']
@@ -115,6 +131,7 @@ def handle_upload():
         return render_template('index.html', form=form, error=err)
     if request.method == 'POST':
         sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+        
         try:
             with FileLock('ids.txt.lock', timeout=10.0) as fl:
                 with open('ids.txt', 'r') as userids:
@@ -180,6 +197,7 @@ def uploading():
         img_map = {}
         dets = []
         counts = []
+        count = 0
         for i in range(len(imgfiles)):
             jobs.append(cpu.enqueue(detect_listener, imgfiles[i], outfilenames[i], sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
         for i, job in enumerate(jobs):
@@ -192,7 +210,8 @@ def uploading():
             dets.extend(d)
             for j in range(c):
                 counts.append(j)
-                img_map[j] = i
+                img_map[count] = i
+                count += 1
         job = gpu.enqueue(recognize_listener, base_faces, filenames, dets, imgs, counts, img_map, sess_id)
         while job.result is None:
             time.sleep(1)
@@ -366,3 +385,7 @@ def pre_proc_attack(attack, norm, margin, amplification, selected, sess_id):
 @app.route('/about', methods=['GET'])
 def about():
     return render_template('about.html')
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')

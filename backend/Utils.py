@@ -2,9 +2,9 @@ import imageio
 import numpy as np 
 import os
 import math
-from faceoff import Config
-from faceoff.Crop import *
-from faceoff.Models import get_model
+from backend import Config
+from backend.Crop import *
+from backend.Models import get_model
 from tensorflow.keras import backend
 from zipfile import ZipFile
 import io

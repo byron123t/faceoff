@@ -1,8 +1,8 @@
 import numpy as np
-from faceoff import Config
-from faceoff.Crop import apply_delta
-from faceoff.Utils import transpose_back
-from faceoff.Utils import save_image
+from backend import Config
+from backend.Crop import apply_delta
+from backend.Utils import transpose_back
+from backend.Utils import save_image
 import argparse
 
 
@@ -62,8 +62,8 @@ def find_adv(sess,
              face_stack_source,
              face_stack_target,
              margin=0):
-    from faceoff.CW import CW
-    from faceoff.PGD import PGD
+    from backend.CW import CW
+    from backend.PGD import PGD
     """
     Description
 
@@ -132,7 +132,7 @@ def outer_attack(params,
                  person):
     import tensorflow as tf
     from keras import backend
-    from faceoff.Models import get_model
+    from backend.Models import get_model
     """
     Description
 

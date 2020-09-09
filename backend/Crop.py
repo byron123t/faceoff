@@ -1,12 +1,11 @@
 import sys
 import os
 import numpy as np
-from faceoff.dets.DetectFace import create_mtcnn, detect_face
 import scipy.misc as ms
 from PIL import Image
 import imageio
 import cv2
-from faceoff import Config
+from backend import Config
 
 
 def pre_proc(img, params):
