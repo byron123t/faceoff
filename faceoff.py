@@ -1,4 +1,4 @@
-from flask import Flask, flash, request, redirect, url_for, render_template, session, json, send_from_directory
+from flask import Flask, flash, request, redirect, url_for, render_template, session, json, send_from_directory, Response
 import requests
 import os
 import secrets
@@ -19,7 +19,7 @@ from flask_wtf import FlaskForm, RecaptchaField
 from functools import partial
 from multiprocessing import Pool, Manager, Value
 from zipfile import ZipFile
-from redis import Redis
+from redis import Redis, StrictRedis
 import string
 import random
 import time
@@ -41,7 +41,7 @@ RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 app = Flask(__name__)
 gpu = Queue('gpu', connection=Redis())
 cpu = Queue('cpu', connection=Redis())
-r = redis.StrictRedis(host='localhost', port=6379, password='', decode_responses=True)
+r = StrictRedis(host='localhost', port=6379, password='', decode_responses=True)
 app.config['SECRET_KEY'] = b'\xcd u\xd5\xb4f 5\x18e\x1b\x0f\xf8\xee\x97\xd3'
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -69,8 +69,12 @@ class PhotoForm(FlaskForm):
     recaptcha = RecaptchaField()
 
 
-class BlankForm(FlaskForm):
-    placeholder = StringField('placeholder', default='')
+class AutoForm(FlaskForm):
+    auto = StringField('auto', default='')
+
+
+class DoneForm(FlaskForm):
+    done = StringField('done', default='')
 
 
 class DownloadForm(FlaskForm):
@@ -86,17 +90,100 @@ class PertForm(FlaskForm):
     attacks = IntegerRangeField('attacks', default=0)
 
 
-class ExportingThread(threading.Thread):
-    def __init__(self):
+class DetectThread(threading.Thread):
+    def __init__(self, sess_id, outfilenames):
+        self.base_faces = []
+        self.filenames = []
+        self.imgs = []
+        self.img_map = {}
+        self.dets = []
+        self.counts = []
+        self.count = 0
+        self.progress = 0
+        self.sess_id = sess_id
+        self.outfilenames = outfilenames
+        super().__init__()
+
+    def run(self):
+        imgfiles = []
+        for outfile in self.outfilenames:
+            npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
+            imgfiles.append(npimg)
+        jobs = []
+        for i in range(len(imgfiles)):
+            jobs.append(cpu.enqueue(detect_listener, imgfiles[i], self.outfilenames[i], self.sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
+        data = r.hgetall(self.sess_id)
+        data['progress'] = 0
+        r.hset(self.sess_id, mapping=data)
+
+        for i, job in enumerate(jobs):
+            while job.result is None:
+                time.sleep(1)
+            b, f, im, d, c = job.result
+            self.base_faces.extend(b)
+            self.filenames.extend(f)
+            self.imgs.append(im)
+            self.dets.extend(d)
+            for j in range(c):
+                self.counts.append(j)
+                self.img_map[self.count] = i
+                self.count += 1
+            self.progress += 100/(len(jobs)+1)
+            print(self.progress)
+            data = r.hgetall(self.sess_id)
+            data['progress'] = self.progress
+            r.hset(self.sess_id, mapping=data)
+        job = gpu.enqueue(recognize_listener, self.base_faces, self.filenames, self.dets, self.imgs, self.counts, self.img_map, self.sess_id)
+        while job.result is None:
+            time.sleep(1)
+        data = r.hgetall(self.sess_id)
+        data['progress'] = 100
+        r.hset(self.sess_id, mapping=data)
+
+        filedets, filedims = job.result
+        r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
+        r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
+
+
+class AttackThread(threading.Thread):
+    def __init__(self, sess_id, attack, norm, margin, amplification, selected):
+        self.sess_id = sess_id
+        self.attack = attack
+        self.norm = norm
+        self.margin = margin
+        self.amplification = amplification
+        self.selected = selected
         self.progress = 0
         super().__init__()
 
     def run(self):
-        # Your exporting stuff goes here ...
-        for _ in range(10):
-            time.sleep(1)
-            self.progress += 10
-
+        data = r.hgetall(self.sess_id)
+        data['progress'] = 0
+        r.hset(self.sess_id, mapping=data)
+        params, people = pre_proc_attack(self.attack, self.norm, self.margin, self.amplification, self.selected, self.sess_id)
+        jobs = []
+        done_imgs = {}
+        for i in range(len(people)):
+            jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1)))
+        for i in jobs:
+            while i.result is None:
+                time.sleep(1)
+            person, delta = i.result
+            done_imgs = amplify(params=params,
+                                face=person['base']['face'],
+                                delta=delta,
+                                amp=params['amp'],
+                                person=person,
+                                done_imgs=done_imgs)
+            self.progress += 100/(len(jobs))
+            data = r.hgetall(self.sess_id)
+            data['progress'] = self.progress
+            r.hset(self.sess_id, mapping=data)
+        save_image(done_imgs=done_imgs,
+               sess_id=self.sess_id)
+        data = r.hgetall(self.sess_id)
+        data['progress'] = 100
+        r.hset(self.sess_id, mapping=data)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -120,6 +207,22 @@ def handle_bad_request(e):
     return error_message('Uploaded files must be under 5MB')
 
 
+@app.route('/progress/<sess_id>')
+def progress(sess_id):
+    def generate():
+        data = 0
+        while data <= 100:
+            data = r.hget(sess_id, 'progress')
+            if data is None:
+                data = 0
+            data = float(data)
+            time.sleep(1)
+            yield 'data:' + str(data) + '\n\n'
+            if data == 100:
+                break
+    return Response(generate(), mimetype='text/event-stream')
+
+
 @app.route('/', methods=['GET', 'POST'])
 def handle_upload():
     session.permanent = True
@@ -131,19 +234,22 @@ def handle_upload():
         return render_template('index.html', form=form, error=err)
     if request.method == 'POST':
         sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-        
-        try:
-            with FileLock('ids.txt.lock', timeout=10.0) as fl:
-                with open('ids.txt', 'r') as userids:
-                    txt = userids.read()
-                    while sess_id in userids:
-                        # sess_id = str(uuid4())
-                        sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-                with open('ids.txt', 'a') as userids:
-                    userids.write('{}\n'.format(sess_id))
-        except Exception as e:
-            print(e)
-            os.remove('ids.txt.lock')
+        while r.exists(sess_id):
+            sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+        data = {'loading': 'false', 'attack': 'none', 'norm': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0}
+        r.hset(sess_id, mapping=data)
+        # try:
+        #     with FileLock('ids.txt.lock', timeout=10.0) as fl:
+        #         with open('ids.txt', 'r') as userids:
+        #             txt = userids.read()
+        #             while sess_id in userids:
+        #                 # sess_id = str(uuid4())
+                        
+        #         with open('ids.txt', 'a') as userids:
+        #             userids.write('{}\n'.format(sess_id))
+        # except Exception as e:
+        #     print(e)
+        #     os.remove('ids.txt.lock')
         if form.is_submitted():
             files = form.photo.data
             outfilenames = []
@@ -172,67 +278,47 @@ def uploading():
     outfilenames = session_attr('outfilenames')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    form = BlankForm()
+    form1 = AutoForm()
+    form2 = DoneForm()
     if request.method == 'POST':
-        try:
-            with FileLock('ids.txt.lock', timeout=10.0) as fl:
-                with open('ids.txt', 'r') as userids:
-                    text = userids.read()
-                    if '{}loading'.format(sess_id) in text:
-                        return redirect(url_for('detected_faces'))
-                    new_text = text.replace(sess_id, sess_id+'loading')
-                with open('ids.txt', 'w') as userids:
-                    userids.write(new_text)
-        except Exception as e:
-            print(e)
-            os.remove('ids.txt.lock')
-        imgfiles = []
-        for outfile in outfilenames:
-            npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
-            imgfiles.append(npimg)
-        jobs = []
-        base_faces = []
-        filenames = []
-        imgs = []
-        img_map = {}
-        dets = []
-        counts = []
-        count = 0
-        for i in range(len(imgfiles)):
-            jobs.append(cpu.enqueue(detect_listener, imgfiles[i], outfilenames[i], sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
-        for i, job in enumerate(jobs):
-            while job.result is None:
-                time.sleep(1)
-            b, f, im, d, c = job.result
-            base_faces.extend(b)
-            filenames.extend(f)
-            imgs.append(im)
-            dets.extend(d)
-            for j in range(c):
-                counts.append(j)
-                img_map[count] = i
-                count += 1
-        job = gpu.enqueue(recognize_listener, base_faces, filenames, dets, imgs, counts, img_map, sess_id)
-        while job.result is None:
-            time.sleep(1)
-        filedets, filedims = job.result
-        session['filedets'] = json.dumps(filedets)
-        session['filedims'] = json.dumps(filedims)
-        return redirect(url_for('detected_faces'))
+        print(form1.data['auto'])
+        print(form2.data['done'])
+        if form1.data['auto'] == 'yes':
+            data = r.hgetall(sess_id)
+            print(data['loading'])
+            if data['loading'] == 'true':
+                return redirect(url_for('detected_faces'))
+            data['loading'] = 'true'
+            r.hset(sess_id, mapping=data)
+            # try:
+            #     with FileLock('ids.txt.lock', timeout=10.0) as fl:
+            #         with open('ids.txt', 'r') as userids:
+            #             text = userids.read()
+            #             if '{}loading'.format(sess_id) in text:
+            #                 return redirect(url_for('detected_faces'))
+            #             new_text = text.replace(sess_id, sess_id+'loading')
+            #         with open('ids.txt', 'w') as userids:
+            #             userids.write(new_text)
+            # except Exception as e:
+            #     print(e)
+            #     os.remove('ids.txt.lock')
+            th = DetectThread(sess_id, outfilenames)
+            th.start()
+            return ('', 204)
+        elif form2.data['done'] == 'yes':
+            return redirect(url_for('detected_faces'))
     else:
-        return render_template('uploading.html', form=form)
+        return render_template('uploading.html', form1=form1, form2=form2, sess_id=sess_id)
 
 
 @app.route('/detected_faces', methods=['GET', 'POST'])
 def detected_faces():
     count = 0
     sess_id = session_attr('sess_id')
-    filedets = session_attr('filedets')
-    filedims = session_attr('filedims')
 
-    if sess_id and filedets and filedims:
-        filedets = json.loads(filedets)
-        filedims = json.loads(filedims)
+    if sess_id:
+        filedets = json.loads(r.hget(sess_id, 'filedets'))
+        filedims = json.loads(r.hget(sess_id, 'filedims'))
     else:
         return error_message('Sorry, your session has expired.')
     for key, val in filedets.items():
@@ -281,43 +367,27 @@ def download():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    form = BlankForm()
+    form1 = AutoForm()
+    form2 = DoneForm()
     if request.method == 'GET':
-        return render_template('download.html', form=form, sess_id=sess_id)
+        return render_template('download.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
-        attack, norm, margin, amplification, selected = parse_form()
-        try:
-            with FileLock('ids.txt.lock', timeout=10.0) as fl:
-                with open('ids.txt', 'r') as userids:
-                    text = userids.read()
-                    print(text)
-                    print('{} - {} - {}'.format(sess_id, attack, norm))
-                    if '{} - {} - {}'.format(sess_id, attack, norm) in text:
-                        return redirect(url_for('finish'))
-                    new_text = text.replace(sess_id+'loading', '{} - {} - {} - {}'.format(sess_id, attack, norm, datetime.utcnow()))
-                with open('ids.txt', 'w') as userids:
-                    userids.write(new_text)
-        except Exception as e:
-            print(e)
-            os.remove('ids.txt.lock')
-        params, people = pre_proc_attack(attack, norm, margin, amplification, selected, sess_id)
-        jobs = []
-        done_imgs = {}
-        for i in range(len(people)):
-            jobs.append(gpu.enqueue(attack_listener, params, people[i], sess_id, job_timeout=1500, retry=Retry(max=10, interval=1)))
-        for i in jobs:
-            while i.result is None:
-                time.sleep(1)
-            person, delta = i.result
-            done_imgs = amplify(params=params,
-                                face=person['base']['face'],
-                                delta=delta,
-                                amp=params['amp'],
-                                person=person,
-                                done_imgs=done_imgs)
-        save_image(done_imgs=done_imgs,
-               sess_id=sess_id)
-        return redirect(url_for('finish'))
+        if form1.data['auto'] == 'yes':
+            attack, norm, margin, amplification, selected = parse_form()
+            data = r.hgetall(sess_id)
+            if data['loading'] == 'false':
+                return redirect(url_for('finish'))
+            data['attack'] = attack
+            data['norm'] = norm
+            data['amp'] = amplification
+            data['margin'] = margin
+            data['time'] = datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')
+            r.hmset(sess_id, mapping=data)
+            th = AttackThread(sess_id, attack, norm, margin, amplification, selected)
+            th.start()
+            return ('', 204)
+        elif form2.data['done'] == 'yes':
+            return redirect(url_for('finish'))
 
 
 @app.route('/finish', methods=['GET', 'POST'])
@@ -325,13 +395,14 @@ def finish():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
+    data = r.hgetall(sess_id)
+    data['loading'] = 'false'
+    r.hset(sess_id, mapping=data)
     form1 = DownloadForm()
     form2 = LoopForm()
     if request.method == 'GET':
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
-        print(form1.data)
-        print(form2.data)
         if form1.data['download'] == 'yes':
             return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
         elif form2.data['doagain'] == 'yes':

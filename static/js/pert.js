@@ -11,6 +11,11 @@ var pert_steps = [
     "Light Distortion = Least Privacy",
 ];
 
+$(document).ready(function(){
+    $("#upload-pert-btn").click(function(){        
+        $("#upload-pert").submit(); // Submit the form
+    });
+});
 
 function attackUpdate(value) {
     $('#attack-display').html(attack_steps[value]);

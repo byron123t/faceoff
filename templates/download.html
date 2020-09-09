@@ -48,9 +48,14 @@
         <div class="s-12 m-10 l-8 text-center center">
           <p class="text-white margin-bottom-10 text-size-20">Your download will appear shortly...</p>
         </div>
-        <form id="placeholder" enctype="multipart/form-data" action="" method="POST">
-          {{form.csrf_token}}
-          {{form.placeholder(hidden="true")}}
+        <form id="auto" enctype="multipart/form-data" action="" method="POST">
+          {{form1.csrf_token}}
+          {{form1.auto(hidden="true", id="auto-input")}}
+        </form>
+        <h2 id="sess-id" hidden>{{sess_id}}</h2>
+        <form id="done" enctype="multipart/form-data" action="" method="POST">
+          {{form2.csrf_token}}
+          {{form2.done(hidden="true", id="done-input")}}
         </form>
       </section>
       <section class="section text-center">
@@ -80,6 +85,9 @@
           <div class="loader center"></div>
         </div>
       </section>
+      <div class="s-12 m-10 l-8 text-center center">
+        <progress class="center" style="width: 100%; height: 3vh" id="prog" value="0" max="100">0%</progress>
+      </div>
     </main>
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
