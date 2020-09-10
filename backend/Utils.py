@@ -52,7 +52,7 @@ def save_image(done_imgs,
                 format_type = 'GIF'
             else:
                 format_type = 'ERROR'
-            im.save(filename, format_type)
+            im.save(os.path.join(Config.UPLOAD_FOLDER, filename), format_type)
             print(filename)
     else:
         with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
