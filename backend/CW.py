@@ -274,10 +274,7 @@ class CW:
         const_list = []
         adv_list = []
         delta_list = []
-        if self.p_norm != '2':
-            batch_size = 1
-        else:
-            batch_size = self.batch_size
+        batch_size = self.batch_size
         for i in range(0,len(imgs),batch_size):
             cur_batch = len(imgs) - i
             if self.batch_size > cur_batch:
@@ -289,11 +286,7 @@ class CW:
                               num_target=self.num_target,
                               confidence=self.MARGIN,
                               margin=self.MARGIN)
-            if self.p_norm == '2':
-                lp, const, adv, delta = self.attack_batch_l2(imgs[i:i+self.batch_size], target_imgs, src_imgs)
-            else:
-                #lp, const, adv, delta = self.attack_batch_linf(imgs[i:i+self.batch_size], target_imgs, src_imgs)
-                lp, const, adv, delta = self.attack_batch_linf(imgs[i:i+1], target_imgs, src_imgs)
+            lp, const, adv, delta = self.attack_batch_l2(imgs[i:i+self.batch_size], target_imgs, src_imgs)
 
             lp_list.extend(lp)
             const_list.extend(const)

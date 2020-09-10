@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US" style="overflow: hidden">
+<html lang="en-US">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,7 +17,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.png') }}" />
   </head>
   
-  <body class="size-1140">
+  <body class="size-1140"  style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover;">
 
     <header role="banner" class="position-absolute">    
       <nav class="background-transparent background-transparent-hightlight full-width sticky">
@@ -31,7 +31,8 @@
           <p class="nav-text"></p>
           <ul class="right chevron">
             <li><a href="/">Home</a></li>
-            <li><a href="/about">About</a></li>
+            <li><a href="/about#about">About</a></li>
+            <li><a href="/about#privacy">Privacy</a></li>
           </ul>
         </div>
       </nav>
@@ -39,36 +40,72 @@
     
     <main role="main">    
       <header>
-            <div class="s-12">
-              <img src="{{ url_for('static', filename='img/header4-8.jpg') }}" style="object-fit: cover;" alt="">
-              <section class="section content-center-vertical">
-                <div class="line">
-                  <h2 class="text-size-70 text-center text-white">Privacy Policy</h2>
-                  <hr class="break-small background-primary break-center">
-                </div>
-                <div class="line">
-                  <div class="margin">  
-                    <div class="s-12 m-12 l-3">
-                      <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Your Data Privacy Is Important</p>
-                    </div>
-                    <div class="s-12 m-12 l-7">
-                      <p class="text-size-20 margin-m-bottom-30 text-white"> - We permanently delete ALL of your personal data from our servers.<br/> - We do NOT save your data in any form in our algorithms or models. <br/> - Within 1 hour, all of your data is deleted.</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="line margin-top-bottom-10">
-                  <div class="margin">
-                    <div class="s-12 m-12 l-3">
-                      <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Session Cookies</p>
-                    </div>
-                    <div class="s-12 m-12 l-7">
-                      <p class="text-size-20 margin-m-bottom-30 text-white"> - Cookies are used only for website functionality purposes.</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
+        <div class="s-12">
+          <section class="section" id="about">
+            <div class="line">
+              <h2 class="text-size-70 text-center text-white">About Face-Off</h2>
+              <hr class="break-small background-primary break-center">
             </div>
+            <div class="line">
+              <div class="margin">  
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Online Face Recognition</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <p class="text-size-20 margin-m-bottom-30 text-white"> - Many online platforms use your uploaded photos in face recognition systems.<br/><br/> - This includes most social media services (Facebook, Instagram, etc...). <br/><br/> - Oftentimes data is leaked or scraped and can be used in harmful ways (clearview.ai, Cambridge Analytica, etc...).</p>
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Hiding Faces From AI</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <p class="text-size-20 text-white"> - Face-Off allows you to protect your face data by adding a discrete and strategic distortion layer which hides your face from being recognized by face recognition. <br/><br/> - Note: Face-Off does not guarantee protection, it increases the chances that a face recognition system will not be able to recognize you. <br/><br/> - Note: Face-Off does not stop face <i>detection</i>, a service will still know that a face is there, it just won't know who it belongs to.</p>
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">How to use Face-Off</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <p class="text-size-20 text-white"> 1. Upload the photos you plan to upload to social media to Face-Off.<br/><br/> 2. Select the faces you wish to hide <br/><br/> 3. Pick the distortion settings for the concealment layer.<br/><br/> 4. Download the images when they are finished processing. <br/><br/> 5. Upload the new processed images to social media.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="section" id="privacy">
+            <div class="line">
+              <h2 class="text-size-70 text-center text-white">Privacy Policy</h2>
+              <hr class="break-small background-primary break-center">
+            </div>
+            <div class="line">
+              <div class="margin">  
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Your Data Privacy Is Important</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <p class="text-size-20 margin-m-bottom-30 text-white"> - We permanently delete ALL of your photo data from our servers.<br/><br/> - We do NOT save your data in any form in our algorithms or models. <br/><br/> - Within 1 hour after uploading your images, all of your data is deleted. <br/><br/> - We DO save information about which selections you choose for statistics purposes, though this is anonymous data.</p>
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Session Cookies</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <p class="text-size-20 margin-m-bottom-30 text-white"> - Cookies are used only for website functionality purposes and do not contain identifying information like location or IP address.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </header>
+    </main>
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>

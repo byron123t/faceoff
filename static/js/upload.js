@@ -6,8 +6,8 @@ $(document).ready(function(){
 
 $('#photo').live('change', (function(){
     var files = $(this)[0].files;
-    if(files.length > 500){
-        alert("you can select max 500 files.");
+    if(files.length > 50){
+        alert("you can select max 50 files.");
     }else{
         $('#file-counter').html(files.length + ' files selected');
     }

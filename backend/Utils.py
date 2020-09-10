@@ -38,13 +38,11 @@ def save_image(done_imgs,
                sess_id):
     """
     """
-    with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+    if Config.R.hget(sess_id, 'single') != 'none':
         for filename, img in done_imgs.items():
-            buf = io.BytesIO()
-            orig = filename.replace(sess_id, '')
-            index = orig.index('.')
+            index = filename.index('.')
             im = Image.fromarray((img * 255).astype(np.uint8))
-            ext = orig[index:].lower()
+            ext = filename[index:].lower()
             print(ext)
             if ext == '.jpg' or ext == '.jpeg':
                 format_type = 'JPEG'
@@ -54,9 +52,28 @@ def save_image(done_imgs,
                 format_type = 'GIF'
             else:
                 format_type = 'ERROR'
-            im.save(buf, format_type)
-            zf.writestr(orig, buf.getvalue())
-            print(orig)
+            im.save(filename, format_type)
+            print(filename)
+    else:
+        with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
+            for filename, img in done_imgs.items():
+                buf = io.BytesIO()
+                orig = filename.replace(sess_id, '')
+                index = orig.index('.')
+                im = Image.fromarray((img * 255).astype(np.uint8))
+                ext = orig[index:].lower()
+                print(ext)
+                if ext == '.jpg' or ext == '.jpeg':
+                    format_type = 'JPEG'
+                elif ext == '.png':
+                    format_type = 'PNG'
+                elif ext == '.gif':
+                    format_type = 'GIF'
+                else:
+                    format_type = 'ERROR'
+                im.save(buf, format_type)
+                zf.writestr(orig, buf.getvalue())
+                print(orig)
 
 
 def face_detection(imgfiles, outfilenames, sess_id):

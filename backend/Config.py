@@ -1,5 +1,6 @@
 import os, cv2
 import numpy as np
+from redis import Redis, StrictRedis
 
 
 ROOT = os.path.abspath('./backend')
@@ -26,7 +27,7 @@ API_PEOPLE = ['barack', 'leo', 'matt', 'melania', 'morgan', 'taylor']
 PAIRS = {'barack': 'morgan', 'mark': 'bill', 'matt': 'bill', 'taylor': 'jenn',
          'melania': 'jenn', 'jenn': 'melania', 'bill': 'barack', 'morgan':
          'bill', 'leo': 'bill', 'meryl': 'jenn'}
-
+R = StrictRedis(host='localhost', port=6379, password='', decode_responses=True)
 
 def string_to_bool(arg):
     """Converts a string into a returned boolean."""

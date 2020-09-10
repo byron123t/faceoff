@@ -10,7 +10,7 @@ from backend.Detect import detect_listener
 from backend.Attack import amplify
 from wtforms import BooleanField, StringField, MultipleFileField, SubmitField
 from wtforms.fields.html5 import IntegerRangeField
-from flask_wtf import FlaskForm, RecaptchaField
+from flask_wtf import FlaskForm, RecaptchaField, validators
 from zipfile import ZipFile
 from redis import Redis, StrictRedis
 import string
@@ -25,16 +25,16 @@ from rq import Queue, Retry
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 app = Flask(__name__)
 gpu = Queue('gpu', connection=Redis())
 cpu = Queue('cpu', connection=Redis())
-r = StrictRedis(host='localhost', port=6379, password='', decode_responses=True)
+r = Config.R
 app.config['SECRET_KEY'] = b'\xcd u\xd5\xb4f 5\x18e\x1b\x0f\xf8\xee\x97\xd3'
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -139,10 +139,9 @@ class DetectThread(threading.Thread):
 
 
 class AttackThread(threading.Thread):
-    def __init__(self, sess_id, attack, norm, margin, amplification, selected):
+    def __init__(self, sess_id, attack, margin, amplification, selected):
         self.sess_id = sess_id
         self.attack = attack
-        self.norm = norm
         self.margin = margin
         self.amplification = amplification
         self.selected = selected
@@ -153,7 +152,7 @@ class AttackThread(threading.Thread):
         data = r.hgetall(self.sess_id)
         data['progress'] = 0
         r.hset(self.sess_id, mapping=data)
-        params, people = pre_proc_attack(self.attack, self.norm, self.margin, self.amplification, self.selected, self.sess_id)
+        params, people = pre_proc_attack(self.attack, self.margin, self.amplification, self.selected, self.sess_id)
         jobs = []
         done_imgs = {}
         for i in range(len(people)):
@@ -212,6 +211,7 @@ def progress(sess_id):
             time.sleep(1)
             yield 'data:' + str(data) + '\n\n'
             if data == 100:
+                r.hset(sess_id, 'progress', 0)
                 break
     return Response(generate(), mimetype='text/event-stream')
 
@@ -226,11 +226,6 @@ def handle_upload():
         session.pop('error')
         return render_template('index.html', form=form, error=err)
     if request.method == 'POST':
-        sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-        while r.exists(sess_id):
-            sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-        data = {'loading': 'false', 'attack': 'none', 'norm': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0}
-        r.hset(sess_id, mapping=data)
         # try:
         #     with FileLock('ids.txt.lock', timeout=10.0) as fl:
         #         with open('ids.txt', 'r') as userids:
@@ -243,8 +238,13 @@ def handle_upload():
         # except Exception as e:
         #     print(e)
         #     os.remove('ids.txt.lock')
-        if form.is_submitted():
+        if form.validate_on_submit():
             files = form.photo.data
+            sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+            while r.exists(sess_id):
+                sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
+            data = {'loading': 'false', 'attack': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0, 'single': 'none'}
+            r.hset(sess_id, mapping=data)
             outfilenames = []
             for file in files:
                 filename = secure_filename(file.filename)
@@ -256,6 +256,8 @@ def handle_upload():
 
             if len(outfilenames) == 0:
                 return error_message('Please upload at least 1 file of the following type [.jpeg .jpg .png .gif]')
+            elif len(outfilenames) == 1:
+                r.hset(sess_id, 'single', outfilenames[0])
         else:
             return redirect(request.url)
         session['outfilenames'] = outfilenames
@@ -365,18 +367,20 @@ def download():
     if request.method == 'GET':
         return render_template('download.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
+        print(form1.data['auto'])
+        print(form2.data['done'])
         if form1.data['auto'] == 'yes':
-            attack, norm, margin, amplification, selected = parse_form()
+            attack, margin, amplification, selected = parse_form()
             data = r.hgetall(sess_id)
+            print(data['loading'])
             if data['loading'] == 'false':
                 return redirect(url_for('finish'))
             data['attack'] = attack
-            data['norm'] = norm
             data['amp'] = amplification
             data['margin'] = margin
             data['time'] = datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')
             r.hmset(sess_id, mapping=data)
-            th = AttackThread(sess_id, attack, norm, margin, amplification, selected)
+            th = AttackThread(sess_id, attack, margin, amplification, selected)
             th.start()
             return ('', 204)
         elif form2.data['done'] == 'yes':
@@ -397,7 +401,12 @@ def finish():
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
         if form1.data['download'] == 'yes':
-            return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
+            print(sess_id)
+            single = r.hget(sess_id, 'single')
+            if single != 'none':
+                return send_from_directory(UPLOAD_FOLDER, single, as_attachment=True, attachment_filename=single.replace(sess_id, ''))
+            else:
+                return send_from_directory(UPLOAD_FOLDER, '{}.zip'.format(sess_id), as_attachment=True)
         elif form2.data['doagain'] == 'yes':
             return redirect(url_for('handle_upload'))
 
@@ -408,35 +417,50 @@ def parse_form():
     selected = session_attr('selected')
     if attk == 0:
         attack = 'CW'
-        norm = 2
+        if pert == 0:
+            margin = 5
+            amplification = 4.00
+        elif pert == 1:
+            margin = 5
+            amplification = 3.25
+        elif pert == 2:
+            margin = 5
+            amplification = 2.50
+        elif pert == 3:
+            margin = 5
+            amplification = 1.75
+        elif pert == 4:
+            margin = 5
+            amplification = 1.00
+        else:
+            print('error')
     elif attk == 1:
         attack = 'PGD'
-        norm = 2
+        if pert == 0:
+            margin = 5
+            amplification = 8
+        elif pert == 1:
+            margin = 5
+            amplification = 6.5
+        elif pert == 2:
+            margin = 5
+            amplification = 5
+        elif pert == 3:
+            margin = 5
+            amplification = 3.5
+        elif pert == 4:
+            margin = 5
+            amplification = 2
+        else:
+            print('error')
     else:
         print('error')
-    if pert == 0:
-        margin = 5
-        amplification = 4.75
-    elif pert == 1:
-        margin = 5
-        amplification = 4.00
-    elif pert == 2:
-        margin = 5
-        amplification = 3.25
-    elif pert == 3:
-        margin = 5
-        amplification = 2.50
-    elif pert == 4:
-        margin = 5
-        amplification = 1.75
-    else:
-        print('error')
-    return attack, norm, margin, amplification, selected
+
+    return attack, margin, amplification, selected
 
 
-def pre_proc_attack(attack, norm, margin, amplification, selected, sess_id):
+def pre_proc_attack(attack, margin, amplification, selected, sess_id):
     params = Config.set_parameters(attack=attack,
-                                   norm=norm,
                                    margin=margin,
                                    amplification=amplification,
                                    mean_loss='embedding')
