@@ -24,11 +24,12 @@ from rq import Queue, Retry
 
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
-EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+EXTENSIONS = {'png', 'jpg', 'jpeg'}
+# RECAPTCHA_PUBLIC_KEY = '6LfGiMoZAAAAABsAZ4mvrcpDn8JD8NL-8xDp-g2g'
+# RECAPTCHA_PRIVATE_KEY = '6LfGiMoZAAAAAGwyCWa5P9H0pZQ48rXtWT9KHFA5'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+
 
 
 app = Flask(__name__)
@@ -123,17 +124,16 @@ class DetectThread(threading.Thread):
                 self.count += 1
             self.progress += 100/(len(jobs)+2)
             print(self.progress)
-            data = r.hgetall(self.sess_id)
-            data['progress'] = self.progress
-            r.hset(self.sess_id, mapping=data)
-        job = gpu.enqueue(recognize_listener, self.base_faces, self.filenames, self.dets, self.imgs, self.counts, self.img_map, self.sess_id)
-        while job.result is None:
-            time.sleep(1)
-        data = r.hgetall(self.sess_id)
-        data['progress'] = 100
-        r.hset(self.sess_id, mapping=data)
-
-        filedets, filedims = job.result
+            r.hset(self.sess_id, 'progress', self.progress)
+        if len(self.base_faces) == 0:
+            filedets = 'none'
+            filedims = 'none'
+        else:
+            job = gpu.enqueue(recognize_listener, self.base_faces, self.filenames, self.dets, self.imgs, self.counts, self.img_map, self.sess_id)
+            while job.result is None:
+                time.sleep(1)
+            filedets, filedims = job.result
+        r.hset(self.sess_id, 'progress', 100)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
         r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
 
@@ -312,11 +312,17 @@ def detected_faces():
         filedims = json.loads(r.hget(sess_id, 'filedims'))
     else:
         return error_message('Sorry, your session has expired.')
+    if filedets == 'none' or filedims == 'none':
+        return error_message('Please upload at least 1 image containing a face.')
     for key, val in filedets.items():
         count += len(val.keys())
         print(count)
+    if count == 0:
+        return error_message('Please upload at least 1 image containing a face.')
     form = file_list_form_builder(count)
     print(filedets)
+    print(count) 
+
     if request.method == 'GET':
         return render_template('detect.html', filedets=filedets, filedims=filedims, form=form)
     else:
@@ -392,6 +398,25 @@ def parse_form():
         attack = 'CW'
         if pert == 0:
             margin = 5
+            amplification = 7.00
+        elif pert == 1:
+            margin = 5
+            amplification = 5.75
+        elif pert == 2:
+            margin = 5
+            amplification = 4.50
+        elif pert == 3:
+            margin = 5
+            amplification = 3.25
+        elif pert == 4:
+            margin = 5
+            amplification = 2.00
+        else:
+            print('error')
+    elif attk == 1:
+        attack = 'PGD'
+        if pert == 0:
+            margin = 5
             amplification = 3.00
         elif pert == 1:
             margin = 5
@@ -405,25 +430,6 @@ def parse_form():
         elif pert == 4:
             margin = 5
             amplification = 1.00
-        else:
-            print('error')
-    elif attk == 1:
-        attack = 'PGD'
-        if pert == 0:
-            margin = 5
-            amplification = 8
-        elif pert == 1:
-            margin = 5
-            amplification = 6.5
-        elif pert == 2:
-            margin = 5
-            amplification = 5
-        elif pert == 3:
-            margin = 5
-            amplification = 3.5
-        elif pert == 4:
-            margin = 5
-            amplification = 2
         else:
             print('error')
     else:

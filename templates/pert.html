@@ -40,19 +40,19 @@
     
     <main role="main">    
       <section class="section text-center"> 
-        <h2 class="text-size-50 text-center text-white">Select Privacy Settings</h2>
-        <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-10 text-size-20">Click to set your preferred settings</p></div>
+        <h2 class="text-size-50 text-center text-white">Select Visibility/Privacy Settings</h2>
         <form id="upload-pert" enctype="multipart/form-data" action="" method="POST">
           {{form.csrf_token}}
           <div class="line">
             <div class="margin-top-bottom-80">
+              <p class="text-thin text-white text-center">Note: This choice does not affect privacy, only the speed and distortion visibility</p>
               <div class="slide-container s-3 m-2 l-1 text-center center">
                 {{ form.attacks(min=0, max=1, id='attack-slide', extra_classes='slider', oninput='attackUpdate(value)', style='width:100%;') }}
                   <div style="display: flex; justify-content: space-between; padding: $unit $unit
                   *2;">
                 </div>
             </div>
-            <h2 class="text-thin text-white text-center" id="attack-display">Slow (~50s / unique face)<br/>Much Less Visible Distortion</h2>
+            <h2 class="text-white text-center" id="attack-display">Subtle+Slow<br/>(~30s / unique face)<br/>Very Subtle Distortion</h2>
           </div>
           <div class="margin-top-bottom-80">
             <div class="slide-container">

@@ -1,6 +1,6 @@
 var attack_steps = [
-    "Slow (~50s / unique face)<br/>Much Less Visible Distortion",
-    "Quick (~10s / unique face)<br/>Visible Distortion",
+    "Subtle+Slow<br/>(~30s / unique face)<br/>Very Subtle Distortion",
+    "Visible+Quick<br/>(~10s / unique face)<br/>Visible Distortion",
 ];
 
 var pert_steps = [

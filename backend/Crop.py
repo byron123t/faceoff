@@ -44,10 +44,10 @@ def crop_face(img, detector, outfilename, sess_id):
         nrof_faces = len(bounding_boxes)
     except:
         print('Error detecting')
-        return None, None
+        return None, None, 0
     if nrof_faces < 1:
         print('Error, found {} faces'.format(nrof_faces))
-        return None, None
+        return None, None, 0
     dets = []
     faces = []
     count = 0

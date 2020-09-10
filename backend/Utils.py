@@ -80,7 +80,7 @@ def face_detection(imgfiles, outfilenames, sess_id):
     import tensorflow as tf
     from mtcnn import MTCNN
     filenames = []
-    imgs = []
+    img = None
     dets = []
     base_faces = []
     detector = MTCNN()
@@ -89,11 +89,9 @@ def face_detection(imgfiles, outfilenames, sess_id):
         for f, d in zip(face, det):
             img = np.around(imgfiles / 255.0, decimals=12)
             base_faces.append(f)
-            imgs.append(img)
             dets.append(d)
             filenames.append(outfilenames)
 
-    print(len(base_faces), filenames, len(imgs), dets, count)
     return base_faces, filenames, img, dets, count
 
 
