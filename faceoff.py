@@ -121,7 +121,7 @@ class DetectThread(threading.Thread):
                 self.counts.append(j)
                 self.img_map[self.count] = i
                 self.count += 1
-            self.progress += 100/(len(jobs)+1)
+            self.progress += 100/(len(jobs)+2)
             print(self.progress)
             data = r.hgetall(self.sess_id)
             data['progress'] = self.progress
@@ -149,32 +149,40 @@ class AttackThread(threading.Thread):
         super().__init__()
 
     def run(self):
-        data = r.hgetall(self.sess_id)
-        data['progress'] = 0
-        r.hset(self.sess_id, mapping=data)
+        r.hset(self.sess_id, 'progress', 0)
         params, people = pre_proc_attack(self.attack, self.margin, self.amplification, self.selected, self.sess_id)
         jobs = []
         done_imgs = {}
         for i in range(len(people)):
             jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1)))
-        for i in jobs:
-            while i.result is None:
-                time.sleep(1)
-            person, delta = i.result
-            done_imgs = amplify(params=params,
-                                face=person['base']['face'],
-                                delta=delta,
-                                amp=params['amp'],
-                                person=person,
-                                done_imgs=done_imgs)
-            self.progress += 100/(len(jobs))
-            data = r.hgetall(self.sess_id)
-            data['progress'] = self.progress
-            r.hset(self.sess_id, mapping=data)
+        doneall = False
+        joblen = len(jobs)
+        while not doneall:
+            doneall = True
+            remove = []
+            for j in jobs:
+                if j.result is None:
+                    time.sleep(1)
+                    doneall = False
+                else:
+                    person, delta = j.result
+                    done_imgs = amplify(params=params,
+                                        face=person['base']['face'],
+                                        delta=delta,
+                                        amp=params['amp'],
+                                        person=person,
+                                        done_imgs=done_imgs)
+                    self.progress += 100/(joblen + 1)
+                    r.hset(self.sess_id, 'progress', self.progress)
+                    print(self.progress)
+                    remove.append(j)
+            for i in remove:
+                jobs.remove(i)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         data = r.hgetall(self.sess_id)
         data['progress'] = 100
+        data['loading'] = 'false'
         r.hset(self.sess_id, mapping=data)
 
 def allowed_file(filename):
@@ -210,9 +218,9 @@ def progress(sess_id):
             data = float(data)
             time.sleep(1)
             yield 'data:' + str(data) + '\n\n'
-            if data == 100:
-                r.hset(sess_id, 'progress', 0)
+            if data >= 100:
                 break
+        r.hset(sess_id, 'progress', 0)
     return Response(generate(), mimetype='text/event-stream')
 
 
@@ -226,18 +234,6 @@ def handle_upload():
         session.pop('error')
         return render_template('index.html', form=form, error=err)
     if request.method == 'POST':
-        # try:
-        #     with FileLock('ids.txt.lock', timeout=10.0) as fl:
-        #         with open('ids.txt', 'r') as userids:
-        #             txt = userids.read()
-        #             while sess_id in userids:
-        #                 # sess_id = str(uuid4())
-                        
-        #         with open('ids.txt', 'a') as userids:
-        #             userids.write('{}\n'.format(sess_id))
-        # except Exception as e:
-        #     print(e)
-        #     os.remove('ids.txt.lock')
         if form.validate_on_submit():
             files = form.photo.data
             sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
@@ -260,50 +256,50 @@ def handle_upload():
                 r.hset(sess_id, 'single', outfilenames[0])
         else:
             return error_message('Please do the reCAPTCHA')
-        session['outfilenames'] = outfilenames
         session['sess_id'] = sess_id
-        return redirect(url_for('uploading'))
+        data = r.hgetall(sess_id)
+        print(data['loading'])
+        if data['loading'] == 'true':
+            return redirect(url_for('detected_faces'))
+        data['loading'] = 'true'
+        r.hset(sess_id, mapping=data)
+        th = DetectThread(sess_id, outfilenames)
+        th.start()
+        return redirect(url_for('select_pert'))
     else:
         return render_template('index.html', form=form)
+
+
+@app.route('/select_pert', methods=['GET', 'POST'])
+def select_pert():
+    sess_id = session_attr('sess_id')
+    if sess_id is None:
+        return error_message('Sorry, your session has expired.')
+    form = PertForm()
+    att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
+                'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
+    per_desc = {'desc1': ['Heavy Distortion', 'Normal Distortion', 'Light Distortion'],
+                'desc2': ['More Privacy', 'Some Privacy', 'Less Privacy']}
+    att_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
+    per_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
+    if request.method == 'GET':
+        return render_template('pert.html', form=form, att_desc=att_desc, per_desc=per_desc, att_file=att_file, per_file=per_file)
+    else:
+        session['attack'] = form.attacks.data
+        session['pert'] = form.perts.data
+        return redirect(url_for('uploading'))
 
 
 @app.route('/uploading', methods=['GET', 'POST'])
 def uploading():
     sess_id = session_attr('sess_id')
-    outfilenames = session_attr('outfilenames')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    form1 = AutoForm()
     form2 = DoneForm()
     if request.method == 'POST':
-        print(form1.data['auto'])
-        print(form2.data['done'])
-        if form1.data['auto'] == 'yes':
-            data = r.hgetall(sess_id)
-            print(data['loading'])
-            if data['loading'] == 'true':
-                return redirect(url_for('detected_faces'))
-            data['loading'] = 'true'
-            r.hset(sess_id, mapping=data)
-            # try:
-            #     with FileLock('ids.txt.lock', timeout=10.0) as fl:
-            #         with open('ids.txt', 'r') as userids:
-            #             text = userids.read()
-            #             if '{}loading'.format(sess_id) in text:
-            #                 return redirect(url_for('detected_faces'))
-            #             new_text = text.replace(sess_id, sess_id+'loading')
-            #         with open('ids.txt', 'w') as userids:
-            #             userids.write(new_text)
-            # except Exception as e:
-            #     print(e)
-            #     os.remove('ids.txt.lock')
-            th = DetectThread(sess_id, outfilenames)
-            th.start()
-            return ('', 204)
-        elif form2.data['done'] == 'yes':
-            return redirect(url_for('detected_faces'))
+        return redirect(url_for('detected_faces'))
     else:
-        return render_template('uploading.html', form1=form1, form2=form2, sess_id=sess_id)
+        return render_template('uploading.html', form2=form2, sess_id=sess_id)
 
 
 @app.route('/detected_faces', methods=['GET', 'POST'])
@@ -333,27 +329,6 @@ def detected_faces():
             if val == 'y':
                 selected.append(int(key.replace('customSwitch', '')))
         session['selected'] = selected
-        return redirect(url_for('select_pert'))
-
-
-@app.route('/select_pert', methods=['GET', 'POST'])
-def select_pert():
-    sess_id = session_attr('sess_id')
-    selected = session_attr('selected')
-    if sess_id is None or selected is None:
-        return error_message('Sorry, your session has expired.')
-    form = PertForm()
-    att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
-                'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
-    per_desc = {'desc1': ['Heavy Distortion', 'Normal Distortion', 'Light Distortion'],
-                'desc2': ['More Privacy', 'Some Privacy', 'Less Privacy']}
-    att_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
-    per_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
-    if request.method == 'GET':
-        return render_template('pert.html', form=form, att_desc=att_desc, per_desc=per_desc, att_file=att_file, per_file=per_file)
-    else:
-        session['attack'] = form.attacks.data
-        session['pert'] = form.perts.data
         return redirect(url_for('download'))
 
 
@@ -392,9 +367,6 @@ def finish():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    data = r.hgetall(sess_id)
-    data['loading'] = 'false'
-    r.hset(sess_id, mapping=data)
     form1 = DownloadForm()
     form2 = LoopForm()
     if request.method == 'GET':
@@ -403,6 +375,7 @@ def finish():
         if form1.data['download'] == 'yes':
             print(sess_id)
             single = r.hget(sess_id, 'single')
+            print(single)
             if single != 'none':
                 return send_from_directory(UPLOAD_FOLDER, single, as_attachment=True, attachment_filename=single.replace(sess_id, ''))
             else:
@@ -419,16 +392,16 @@ def parse_form():
         attack = 'CW'
         if pert == 0:
             margin = 5
-            amplification = 4.00
+            amplification = 3.00
         elif pert == 1:
             margin = 5
-            amplification = 3.25
+            amplification = 2.50
         elif pert == 2:
             margin = 5
-            amplification = 2.50
+            amplification = 2.00
         elif pert == 3:
             margin = 5
-            amplification = 1.75
+            amplification = 1.50
         elif pert == 4:
             margin = 5
             amplification = 1.00

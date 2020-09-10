@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US" style="overflow: hidden">
+<html lang="en-US">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +15,7 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-1.8.3.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>     
     <script type="text/javascript" src="{{ url_for('static', filename='js/download.js') }}"></script>
-    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.png') }}" />
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.jpg') }}" />
   </head>
   
   <body class="size-1140" style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover; background-repeat: no-repeat;">
@@ -42,7 +42,7 @@
       <section class="section text-center"> 
         <h2 class="text-size-50 text-center text-white">Please wait while Face-Off hides your face(s)</h2>
         <div class="s-12 m-10 l-8 text-center center">
-          <p class="text-white margin-bottom-10 text-size-20">Your download will appear shortly...</p>
+          <p id="estimated" class="text-white margin-bottom-10 text-size-20">Sit tight, your download will appear in a bit...</p>
         </div>
         <form id="auto" enctype="multipart/form-data" action="" method="POST">
           {{form1.csrf_token}}

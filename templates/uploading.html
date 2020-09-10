@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-US" style="overflow: hidden">
+<html lang="en-US">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,8 +14,8 @@
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700,800&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-1.8.3.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>     
-    <script type="text/javascript" src="{{ url_for('static', filename='js/download.js') }}"></script>
-    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.png') }}" />
+    <script type="text/javascript" src="{{ url_for('static', filename='js/uploading.js') }}"></script>
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.jpg') }}" />
   </head>
   
   <body class="size-1140" style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover; background-repeat: no-repeat;">
@@ -40,10 +40,6 @@
     <main role="main">    
       <section class="section text-center"> 
         <h2 class="text-size-50 text-center text-white">Face-Off is finding the faces in your photo(s)</h2>
-        <form id="auto" enctype="multipart/form-data" action="" method="POST">
-          {{form1.csrf_token}}
-          {{form1.auto(hidden="true", id="auto-input")}}
-        </form>
         <h2 id="sess-id" hidden>{{sess_id}}</h2>
         <form id="done" enctype="multipart/form-data" action="" method="POST">
           {{form2.csrf_token}}

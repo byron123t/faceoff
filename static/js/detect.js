@@ -38,7 +38,7 @@ $('.face-check').live('change', (function(){
 
 $(document).ready(function(){
     var window_width = $(window).width() - 40;
-    var window_height = $(window).height() / 100 * 50;
+    var window_height = $(window).height() / 100 * 48;
     prev_window_width = window_width;
     prev_window_height = window_height;
     $('.det-image').each(function() {
@@ -72,7 +72,7 @@ $(document).ready(function(){
 
 $(window).on('resize', function(){
     var window_width = $(window).width() - 40;
-    var window_height = $(window).height() / 100 * 50;
+    var window_height = $(window).height() / 100 * 48;
     prev_window_width = window_width;
     prev_window_height = window_height;
     $('.det-image').each(function() {
