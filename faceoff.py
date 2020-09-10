@@ -182,7 +182,6 @@ class AttackThread(threading.Thread):
                sess_id=self.sess_id)
         data = r.hgetall(self.sess_id)
         data['progress'] = 100
-        data['loading'] = 'false'
         r.hset(self.sess_id, mapping=data)
 
 def allowed_file(filename):
