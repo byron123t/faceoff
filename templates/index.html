@@ -54,17 +54,16 @@
                 <div class="line">
                   <div class="s-12 m-12 l-3 center margin-top-bottom-30">
                     <form id="upload-img" enctype="multipart/form-data" action="" method="POST">
-                      <label class="button button-white-stroke s-12 text-size-20">
+                      <label class="button button-white-stroke s-12 text-size-20 margin-top-bottom-10">
                         {{form.csrf_token}}
                         Select Image(s){{form.photo(hidden="true")}}
                         <p class="text-size 10">.png .jpeg. jpg</p>
                       </label>
-                      <button id="upload-img-btn" class="button button-white-stroke s-12 margin-top-bottom-30 text-size-20">
+                      {{form.recaptcha}}
+                      <button id="upload-img-btn" class="button button-white-stroke s-12 margin-top-80 text-size-20">
                         Upload
                       </button>
                       <p class="text-center text-white text-size-30" id="file-counter">0 files selected</p>
-                      <br/>
-                      {{form.recaptcha}}
                     </form>
                   </div>       
                 </div>
