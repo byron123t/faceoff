@@ -33,7 +33,8 @@
           <p class="nav-text"></p>
           <ul class="right chevron">
             <li><a href="/">Home</a></li>
-            <li><a href="/about">About</a></li>
+            <li><a href="/about#about">About</a></li>
+            <li><a href="/about#privacy">Privacy</a></li>
           </ul>
         </div>
       </nav>
@@ -49,20 +50,22 @@
               <div class="margin-top-bottom-80">
                 <!-- Title -->
                 <h1 class="text-white text-center margin-bottom-30 text-size-70 text-m-size-30 text-line-height-1">Face-Off</h1>
-                <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-20">Protect your face data with state of the art machine learning privacy research!<br/>Face-Off hides your face from face recognition algorithms.</p></div>
-                <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-20 text-size-14">To begin, select 1 or more images to upload. Don't forget to check the CAPTCHA!</p></div>
+                <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-20">Protect your privacy by hiding your face with Face-Off<br/><br/>Conceal photos with our service before uploading them to social media</p></div>
                 <div class="line">
                   <div class="s-12 m-12 l-3 center margin-top-bottom-30">
                     <form id="upload-img" enctype="multipart/form-data" action="" method="POST">
                       <label class="button button-white-stroke s-12 text-size-20">
                         {{form.csrf_token}}
-                        Select Images{{form.photo(hidden="true")}}
+                        Select Image(s){{form.photo(hidden="true")}}
                       </label>
                       <button id="upload-img-btn" class="button button-white-stroke s-12 margin-top-bottom-30 text-size-20">
                         Upload
                       </button>
-                      <p class="text-center text-white text-size-20" id="file-counter">0 files selected</p>
+                      <p class="text-center text-white text-size-30" id="file-counter">0 files selected</p>
                       <br/>
+                      {% for e in form.recaptcha.errors %}
+                          {{ e }}
+                      {% endfor %}
                       {{form.recaptcha}}
                     </form>
                   </div>       

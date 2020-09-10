@@ -1,14 +1,14 @@
 var attack_steps = [
-    "Slow (~50s / unique face) = Smaller Overall Distortion",
-    "Quick (~10s / unique face) = Larger Overall Distortion",
+    "Slow (~50s / unique face)<br/>Much Less Visible Distortion",
+    "Quick (~10s / unique face)<br/>Visible Distortion",
 ];
 
 var pert_steps = [
-    "Heavy Distortion = Most Privacy",
-    "More Distortion = More Privacy",
-    "Some Distortion = Moderate Privacy",
-    "Less Distortion = Less Privacy",
-    "Light Distortion = Least Privacy",
+    "Heavy Distortion<br/>Most Privacy",
+    "More Distortion<br/>More Privacy",
+    "Some Distortion<br/>Moderate Privacy",
+    "Less Distortion<br/>Less Privacy",
+    "Light Distortion<br/>Least Privacy",
 ];
 
 $(document).ready(function(){
