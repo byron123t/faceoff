@@ -372,7 +372,7 @@ class CW:
                                 best_dist_target[e] = dist_target
                             # else:
                                 # best_dist_target[e] = dist_orig[e]
-                            if best_dist_src[e] - best_dist_target >= self.MARGIN:
+                            if best_dist_src[e] - best_dist_target[e] >= self.MARGIN:
                                 best_loss_inner[e] = l
 
             for e in range(batch_size):

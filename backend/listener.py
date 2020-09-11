@@ -34,7 +34,6 @@ def recognize_listener(base_faces, filenames, dets, imgs, counts, img_map, sess_
     filedets = {}
     filedims = {}
     count = 0
-    print(len(filenames), len(dets), img_map)
     for f, d, i in zip(filenames, dets, range(len(filenames))):
         if f not in filedets:
             filedets[f] = {}

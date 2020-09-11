@@ -20,6 +20,7 @@ import threading
 from datetime import datetime, timedelta
 from filelock import FileLock
 from rq import Queue, Retry
+from rq.job import Job
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -112,7 +113,7 @@ class DetectThread(threading.Thread):
             imgfiles.append(npimg)
         jobs = []
         for i in range(len(imgfiles)):
-            jobs.append(cpu.enqueue(detect_listener, imgfiles[i], self.outfilenames[i], self.sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
+            jobs.append(cpu.enqueue(detect_listener, imgfiles[i], self.outfilenames[i], self.sess_id, job_timeout=100, retry=Retry(max=10, interval=1)))
 
         for i, job in enumerate(jobs):
             while job.result is None:
@@ -127,7 +128,6 @@ class DetectThread(threading.Thread):
                 self.img_map[self.count] = i
                 self.count += 1
             self.progress += 100/(len(jobs)+1)
-            print(self.progress)
             r.hset(self.sess_id, 'progress', self.progress)
         if len(self.base_faces) == 0:
             filedets = 'none'
@@ -158,21 +158,29 @@ class AttackThread(threading.Thread):
         jobs = []
         done_imgs = {}
         for i in range(len(people)):
-            jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=3600))
-        doneall = False
+            jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=500))
         joblen = len(jobs)
-        for j in jobs:
-            while j.result is None:
-                time.sleep(1)
-            person, delta = j.result
-            done_imgs = amplify(params=params,
-                                face=person['base']['face'],
-                                delta=delta,
-                                amp=params['amp'],
-                                person=person,
-                                done_imgs=done_imgs)
-            self.progress += 100/(joblen)
-            r.hset(self.sess_id, 'progress', self.progress)
+        doneall = False
+        while not doneall:
+            time.sleep(1)
+            doneall = True
+            remove = []
+            for j in jobs:
+                if j.get_status() == 'finished':
+                    person, delta = j.result
+                    done_imgs = amplify(params=params,
+                                        face=person['base']['face'],
+                                        delta=delta,
+                                        amp=params['amp'],
+                                        person=person,
+                                        done_imgs=done_imgs)
+                    remove.append(j)
+                    self.progress += 100/(joblen)
+                    r.hset(self.sess_id, 'progress', self.progress)
+                else:
+                    doneall = False
+            for i in remove:
+                jobs.remove(i)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         r.hset(self.sess_id, 'progress', 100)
@@ -314,22 +322,15 @@ def detected_faces():
         return error_message('Please upload at least 1 image containing a face.')
     for key, val in filedets.items():
         count += len(val.keys())
-        print(count)
     if count == 0:
         return error_message('Please upload at least 1 image containing a face.')
     form = file_list_form_builder(count)
-    print(filedets)
-    print(count) 
 
     if request.method == 'GET':
         return render_template('detect.html', filedets=filedets, filedims=filedims, form=form)
     else:
-        print(request.form)
-        for fieldname, value, in request.form.items():
-            print(fieldname, value)
         selected = []
         for key, val in request.form.items():
-            print(val)
             if val == 'y':
                 selected.append(int(key.replace('customSwitch', '')))
         session['selected'] = selected
@@ -372,9 +373,7 @@ def finish():
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
         if form1.data['download'] == 'yes':
-            print(sess_id)
             single = r.hget(sess_id, 'single')
-            print(single)
             if single != 'none':
                 return send_from_directory(UPLOAD_FOLDER, single, as_attachment=True, attachment_filename=single.replace(sess_id, ''))
             else:
@@ -404,8 +403,6 @@ def parse_form():
         elif pert == 4:
             margin = 5
             amplification = 2.00
-        else:
-            print('error')
     elif attk == 1:
         attack = 'PGD'
         if pert == 0:
@@ -423,10 +420,6 @@ def parse_form():
         elif pert == 4:
             margin = 5
             amplification = 1.00
-        else:
-            print('error')
-    else:
-        print('error')
 
     return attack, margin, amplification, selected
 

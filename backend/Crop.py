@@ -38,15 +38,12 @@ def crop_face(img, detector, outfilename, sess_id):
     image_width = 96
     image_height = 112
 
-    print('Trying to find a bounding box')
     try:
         bounding_boxes = detector.detect_faces(img)
         nrof_faces = len(bounding_boxes)
     except:
-        print('Error detecting')
         return None, None, 0
     if nrof_faces < 1:
-        print('Error, found {} faces'.format(nrof_faces))
         return None, None, 0
     dets = []
     faces = []
@@ -75,7 +72,6 @@ def crop_face(img, detector, outfilename, sess_id):
         faces.append(face)
     
     faces = np.array(faces)
-    print(face.shape)
     
     return faces, dets, count
 
@@ -98,30 +94,12 @@ def apply_delta(delta, img, det, params):
     orig_dim = [bb[3]-bb[1], bb[2]-bb[0]]
 
     delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), params['interpolation'])
-    print(delta_up.shape)
-    print(img.shape)
     img[bb[1]:bb[3],bb[0]:bb[2],:3] += delta_up
     img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.maximum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 0)
     img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.minimum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 1)
 
     return img
 
-
-def read_face_from_files(file_list, model, interpolation):
-    """
-    Description
-
-    Keyword arguments:
-    """
-    result = []
-    for file_name in file_list:
-        print(file_name)
-        img = imageio.imread(file_name)
-
-        face, _ = crop_face(img, interpolation)
-        result.append(face)
-    result = np.array(result)
-    return result
 
 def read_face_from_aligned(file_list, params):
     """
@@ -130,7 +108,6 @@ def read_face_from_aligned(file_list, params):
     Keyword arguments:
     """
     result = []
-    print(file_list[0])
     for file_name in file_list:
         # print(file_name)
         face = imageio.imread(file_name)

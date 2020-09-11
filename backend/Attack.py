@@ -46,7 +46,6 @@ def amplify(params,
 
         elif filename not in done_imgs:
             done_imgs[filename] = img
-        print(done_imgs)
 
     return done_imgs
 
@@ -70,9 +69,6 @@ def find_adv(sess,
     num_base = face.shape[0]
     num_src = face_stack_source.shape[0]
     num_target = face_stack_target.shape[0]
-    print('face', face.shape)
-    print('target', face_stack_target.shape)
-    print('source', face_stack_source.shape)
     if params['attack'] == 'CW':
         cw_attack = CW(sess=sess,
                        model=fr_model,
@@ -86,14 +82,12 @@ def find_adv(sess,
                                                                      target_imgs=face_stack_target,
                                                                      src_imgs=face_stack_source,
                                                                      params=params)
-        print(best_lp.shape, best_const.shape, best_adv.shape, best_delta.shape)
     elif params['attack'] == 'PGD':
         #pending verification
         best_lp = []
         best_const = []
         best_adv = []
         best_delta = []
-        print(face.shape)
         if params['batch_size'] <= 0:
             batch_size = num_base
         else:
@@ -154,5 +148,4 @@ def outer_attack(params,
                                              margin=params['margin'])
         backend.clear_session()
         tf.reset_default_graph()
-        print(person['base']['index'])
     return person, delta

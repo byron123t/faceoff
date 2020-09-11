@@ -45,7 +45,6 @@ def save_image(done_imgs,
             index = filename.index('.')
             im = Image.fromarray((img * 255).astype(np.uint8))
             ext = filename[index:].lower()
-            print(ext)
             if ext == '.jpg' or ext == '.jpeg':
                 format_type = 'JPEG'
             elif ext == '.png':
@@ -55,7 +54,6 @@ def save_image(done_imgs,
             else:
                 format_type = 'ERROR'
             im.save(os.path.join(Config.UPLOAD_FOLDER, filename), format_type)
-            print(filename)
     else:
         with ZipFile(os.path.join(Config.UPLOAD_FOLDER, '{}.zip'.format(sess_id)), 'w') as zf:
             for filename, img in done_imgs.items():
@@ -64,7 +62,6 @@ def save_image(done_imgs,
                 index = orig.index('.')
                 im = Image.fromarray((img * 255).astype(np.uint8))
                 ext = orig[index:].lower()
-                print(ext)
                 if ext == '.jpg' or ext == '.jpeg':
                     format_type = 'JPEG'
                 elif ext == '.png':
@@ -75,7 +72,6 @@ def save_image(done_imgs,
                     format_type = 'ERROR'
                 im.save(buf, format_type)
                 zf.writestr(orig, buf.getvalue())
-                print(orig)
 
 
 def face_detection(imgfiles, outfilenames, sess_id):
@@ -100,7 +96,6 @@ def face_detection(imgfiles, outfilenames, sess_id):
 def load_images(params, selected, sess_id):
     """
     """
-    print('Loading Images...')
     people = []
     data = np.load(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'), allow_pickle=True)
     dets = data['dets']
@@ -112,9 +107,7 @@ def load_images(params, selected, sess_id):
         d = dets.item()
         for i, val in d[file].items():
             filename_dict[i] = file
-    print(filename_dict)
     for key, face_matches in pairs.item().items():
-        print(face_matches)
         person = {'base': {}}
         person['base']['index'] = []
         person['base']['filename'] = []
@@ -132,7 +125,6 @@ def load_images(params, selected, sess_id):
             img = np.around(img / 255.0, decimals=12)
 
             if i in selected:
-                print(selected, i)
                 person['base']['face'].append(face)
                 person['base']['index'].append(i)
                 person['base']['filename'].append(file)
@@ -141,8 +133,6 @@ def load_images(params, selected, sess_id):
                 person['base']['dets'].append(dets.item()[file][i])
 
         if len(person['base']['face']) > 0:
-            print(face_matches)
-            print(len(person['base']['face']))
             target_path = os.path.join(Config.ROOT, params['align_dir'], face_matches['pair'])
             target_files = os.listdir(target_path)
             temp_files = []
@@ -153,7 +143,6 @@ def load_images(params, selected, sess_id):
             person['base']['face'] = np.squeeze(np.array(person['base']['face']))
             if len(person['base']['face'].shape) <= 3:
                 person['base']['face'] = np.expand_dims(person['base']['face'], axis=0)
-            print(person['base']['face'].shape)
             person['base']['source'] = np.squeeze(np.array(person['base']['source']))
             if len(person['base']['source'].shape) <= 3:
                 person['base']['source'] = np.expand_dims(person['base']['source'], axis=0)
