@@ -154,7 +154,7 @@ class AttackThread(threading.Thread):
         jobs = []
         done_imgs = {}
         for i in range(len(people)):
-            jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1)))
+            jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=3600))
         doneall = False
         joblen = len(jobs)
         while not doneall:
@@ -227,6 +227,7 @@ def progress(sess_id):
 def handle_upload():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(minutes=30)
+    sess_id = session_attr('sess_id')
     form = PhotoForm()
     if 'error' in session:
         err = session['error']
@@ -238,7 +239,7 @@ def handle_upload():
             sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
             while r.exists(sess_id):
                 sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-            data = {'loading': 'handle_upload', 'attack': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0, 'single': 'none'}
+            data = {'detect': 'false', 'finish': 'false', 'attack': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0, 'single': 'none'}
             r.hset(sess_id, mapping=data)
             outfilenames = []
             for file in files:
@@ -256,11 +257,6 @@ def handle_upload():
         else:
             return error_message('Please do the reCAPTCHA')
         session['sess_id'] = sess_id
-        data = r.hget(sess_id, 'loading')
-        print(data)
-        if data != 'handle_upload':
-            return redirect(url_for(data))
-        r.hset(sess_id, 'loading', 'select_pert')
         th = DetectThread(sess_id, outfilenames)
         th.start()
         return redirect(url_for('select_pert'))
@@ -273,9 +269,11 @@ def select_pert():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    data = r.hget(sess_id, 'loading')
-    if data != 'select_pert':
-        return redirect(url_for(data))
+    data = r.hgetall(sess_id)
+    if data['finish'] == 'true':
+        return redirect(url_for('finish'))
+    elif data['detect'] == 'true':
+        return redirect(url_for('detected_faces'))
     form = PertForm()
     att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
                 'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
@@ -288,7 +286,6 @@ def select_pert():
     else:
         session['attack'] = form.attacks.data
         session['pert'] = form.perts.data
-        r.hset(sess_id, 'loading', 'uploading')
         return redirect(url_for('uploading'))
 
 
@@ -297,12 +294,13 @@ def uploading():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    data = r.hget(sess_id, 'loading')
-    if data != 'uploading':
-        return redirect(url_for(data))
+    data = r.hgetall(sess_id)
+    if data['finish'] == 'true':
+        return redirect(url_for('finish'))
+    elif data['detect'] == 'true':
+        return redirect(url_for('detected_faces'))
     form2 = DoneForm()
     if request.method == 'POST':
-        r.hset(sess_id, 'loading', 'detected_faces')
         return redirect(url_for('detected_faces'))
     else:
         return render_template('uploading.html', form2=form2, sess_id=sess_id)
@@ -317,9 +315,10 @@ def detected_faces():
         filedims = json.loads(r.hget(sess_id, 'filedims'))
     else:
         return error_message('Sorry, your session has expired.')
-    data = r.hget(sess_id, 'loading')
-    if data != 'detected_faces':
-        return redirect(url_for(data))
+    r.hset(sess_id, 'detect', 'true')
+    data = r.hgetall(sess_id)
+    if data['finish'] == 'true':
+        return redirect(url_for('finish'))
     if filedets == 'none' or filedims == 'none':
         return error_message('Please upload at least 1 image containing a face.')
     for key, val in filedets.items():
@@ -343,7 +342,6 @@ def detected_faces():
             if val == 'y':
                 selected.append(int(key.replace('customSwitch', '')))
         session['selected'] = selected
-        r.hset(sess_id, 'loading', 'download')
         return redirect(url_for('download'))
 
 
@@ -354,9 +352,9 @@ def download():
         return error_message('Sorry, your session has expired.')
     form1 = AutoForm()
     form2 = DoneForm()
-    data = r.hget(sess_id, 'loading')
-    if data != 'download':
-        return redirect(url_for(data))
+    data = r.hgetall(sess_id)
+    if data['finish'] == 'true':
+        return redirect(url_for('finish'))
     if request.method == 'GET':
         return render_template('download.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
@@ -369,12 +367,11 @@ def download():
             data['amp'] = amplification
             data['margin'] = margin
             data['time'] = datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')
-            r.hmset(sess_id, mapping=data)
+            r.hset(sess_id, mapping=data)
             th = AttackThread(sess_id, attack, margin, amplification, selected)
             th.start()
             return ('', 204)
         elif form2.data['done'] == 'yes':
-            r.hset(sess_id, 'loading', 'finish')
             return redirect(url_for('finish'))
 
 
@@ -385,9 +382,7 @@ def finish():
         return error_message('Sorry, your session has expired.')
     form1 = DownloadForm()
     form2 = LoopForm()
-    data = r.hget(sess_id, 'loading')
-    if data != 'finish':
-        return redirect(url_for(data))
+    r.hset(sess_id, 'finish', 'true')
     if request.method == 'GET':
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
     else:
