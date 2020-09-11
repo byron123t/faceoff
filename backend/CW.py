@@ -287,7 +287,7 @@ class CW:
                               confidence=self.MARGIN,
                               margin=self.MARGIN)
             lp, const, adv, delta = self.attack_batch_l2(imgs[i:i+self.batch_size], target_imgs, src_imgs)
-
+            print(len(lp), len(const), len(adv), len(delta))
             lp_list.extend(lp)
             const_list.extend(const)
             adv_list.extend(adv)

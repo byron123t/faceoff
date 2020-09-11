@@ -86,6 +86,7 @@ def find_adv(sess,
                                                                      target_imgs=face_stack_target,
                                                                      src_imgs=face_stack_source,
                                                                      params=params)
+        print(best_lp.shape, best_const.shape, best_adv.shape, best_delta.shape)
     elif params['attack'] == 'PGD':
         #pending verification
         best_lp = []

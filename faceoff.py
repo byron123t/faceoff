@@ -20,6 +20,8 @@ import threading
 from datetime import datetime, timedelta
 from filelock import FileLock
 from rq import Queue, Retry
+import logging
+from logging.handlers import RotatingFileHandler
 
 
 ROOT = os.path.abspath('.')
@@ -43,6 +45,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RECAPTCHA_PUBLIC_KEY'] = RECAPTCHA_PUBLIC_KEY
 app.config['RECAPTCHA_PRIVATE_KEY'] = RECAPTCHA_PRIVATE_KEY
 app.config['TRAP_HTTP_EXCEPTIONS']=True
+
+handler = RotatingFileHandler('foo.log', maxBytes=10000, backupCount=1)
+handler.setLevel(logging.INFO)
+app.logger.addHandler(handler)
 
 
 class DetectFormBase(FlaskForm):
@@ -177,8 +183,10 @@ class AttackThread(threading.Thread):
                     r.publish(self.sess_id, self.progress)
                     print(self.progress)
                     remove.append(j)
+                    app.logger.info('does it amplify and publish progress')
             for i in remove:
                 jobs.remove(i)
+        app.logger.info('it worked, idk whats going on')
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         r.publish(self.sess_id, 100)
