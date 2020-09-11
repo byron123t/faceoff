@@ -349,6 +349,15 @@ def detected_faces():
             if val == 'y':
                 selected.append(int(key.replace('customSwitch', '')))
         session['selected'] = selected
+        attack, margin, amplification, selected = parse_form()
+        data = r.hgetall(sess_id)
+        data['attack'] = attack
+        data['amp'] = amplification
+        data['margin'] = margin
+        data['time'] = datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')
+        r.hset(sess_id, mapping=data)
+        th = AttackThread(sess_id, attack, margin, amplification, selected)
+        th.start()
         return redirect(url_for('download'))
 
 
@@ -357,29 +366,14 @@ def download():
     sess_id = session_attr('sess_id')
     if sess_id is None:
         return error_message('Sorry, your session has expired.')
-    form1 = AutoForm()
     form2 = DoneForm()
     data = r.hgetall(sess_id)
     if data['finish'] == 'true':
         return redirect(url_for('finish'))
     if request.method == 'GET':
-        return render_template('download.html', form1=form1, form2=form2, sess_id=sess_id)
+        return render_template('download.html', form2=form2, sess_id=sess_id)
     else:
-        print(form1.data['auto'])
-        print(form2.data['done'])
-        if form1.data['auto'] == 'yes':
-            attack, margin, amplification, selected = parse_form()
-            data = r.hgetall(sess_id)
-            data['attack'] = attack
-            data['amp'] = amplification
-            data['margin'] = margin
-            data['time'] = datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')
-            r.hset(sess_id, mapping=data)
-            th = AttackThread(sess_id, attack, margin, amplification, selected)
-            th.start()
-            return ('', 204)
-        elif form2.data['done'] == 'yes':
-            return redirect(url_for('finish'))
+        return redirect(url_for('finish'))
 
 
 @app.route('/finish', methods=['GET', 'POST'])

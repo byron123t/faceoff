@@ -44,10 +44,6 @@
         <div class="s-12 m-10 l-8 text-center center">
           <p id="estimated" class="text-white margin-bottom-10 text-size-20">Sit tight, your download will appear in a bit...</p>
         </div>
-        <form id="auto" enctype="multipart/form-data" action="" method="POST">
-          {{form1.csrf_token}}
-          {{form1.auto(hidden="true", id="auto-input")}}
-        </form>
         <h2 id="sess-id" hidden>{{sess_id}}</h2>
         <form id="done" enctype="multipart/form-data" action="" method="POST">
           {{form2.csrf_token}}
