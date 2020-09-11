@@ -164,28 +164,20 @@ class AttackThread(threading.Thread):
             jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=3600))
         doneall = False
         joblen = len(jobs)
-        while not doneall:
-            doneall = True
-            remove = []
-            for j in jobs:
-                if j.result is None:
-                    time.sleep(1)
-                    doneall = False
-                else:
-                    person, delta = j.result
-                    done_imgs = amplify(params=params,
-                                        face=person['base']['face'],
-                                        delta=delta,
-                                        amp=params['amp'],
-                                        person=person,
-                                        done_imgs=done_imgs)
-                    self.progress += 100/(joblen)
-                    r.publish(self.sess_id, self.progress)
-                    print(self.progress)
-                    remove.append(j)
-                    app.logger.info('does it amplify and publish progress')
-            for i in remove:
-                jobs.remove(i)
+        for j in jobs:
+            while j.result is None:
+                time.sleep(1)
+            person, delta = j.result
+            done_imgs = amplify(params=params,
+                                face=person['base']['face'],
+                                delta=delta,
+                                amp=params['amp'],
+                                person=person,
+                                done_imgs=done_imgs)
+            self.progress += 100/(joblen)
+            r.publish(self.sess_id, self.progress)
+            print(self.progress)
+            app.logger.info('does it amplify and publish progress')
         app.logger.info('it worked, idk whats going on')
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
@@ -228,6 +220,7 @@ def progress(sess_id):
                     data = 0
                 data = float(data)
                 print(data)
+                app.logger.info(data)
                 if prev != data:
                     yield 'data:' + str(data) + '\n\n'
                     prev = data
