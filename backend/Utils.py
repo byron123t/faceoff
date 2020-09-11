@@ -8,6 +8,7 @@ from tensorflow.keras import backend
 from zipfile import ZipFile
 import io
 from PIL import Image
+from redis import Redis
 
 
 def transpose_back(params,
@@ -38,7 +39,8 @@ def save_image(done_imgs,
                sess_id):
     """
     """
-    if Config.R.hget(sess_id, 'single') != 'none':
+    r = Redis(host='localhost', port=6379, password='', decode_responses=True)
+    if r.hget(sess_id, 'single') != 'none':
         for filename, img in done_imgs.items():
             index = filename.index('.')
             im = Image.fromarray((img * 255).astype(np.uint8))

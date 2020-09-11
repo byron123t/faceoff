@@ -12,7 +12,7 @@ from wtforms import BooleanField, StringField, MultipleFileField, SubmitField
 from wtforms.fields.html5 import IntegerRangeField
 from flask_wtf import FlaskForm, RecaptchaField, validators
 from zipfile import ZipFile
-from redis import Redis, StrictRedis
+from redis import Redis
 import string
 import random
 import time
@@ -25,17 +25,18 @@ from rq import Queue, Retry
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg'}
-RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 
 app = Flask(__name__)
 gpu = Queue('gpu', connection=Redis())
 cpu = Queue('cpu', connection=Redis())
-r = Config.R
+r = Redis(host='localhost', port=6379, password='', decode_responses=True)
+sub = r.pubsub()
 app.config['SECRET_KEY'] = b'\xcd u\xd5\xb4f 5\x18e\x1b\x0f\xf8\xee\x97\xd3'
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -99,6 +100,8 @@ class DetectThread(threading.Thread):
         super().__init__()
 
     def run(self):
+        sub.subscribe(self.sess_id)
+        r.publish(self.sess_id, 0)
         imgfiles = []
         for outfile in self.outfilenames:
             npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
@@ -106,9 +109,6 @@ class DetectThread(threading.Thread):
         jobs = []
         for i in range(len(imgfiles)):
             jobs.append(cpu.enqueue(detect_listener, imgfiles[i], self.outfilenames[i], self.sess_id, job_timeout=15, retry=Retry(max=10, interval=1)))
-        data = r.hgetall(self.sess_id)
-        data['progress'] = 0
-        r.hset(self.sess_id, mapping=data)
 
         for i, job in enumerate(jobs):
             while job.result is None:
@@ -122,9 +122,9 @@ class DetectThread(threading.Thread):
                 self.counts.append(j)
                 self.img_map[self.count] = i
                 self.count += 1
-            self.progress += 100/(len(jobs)+2)
+            self.progress += 100/(len(jobs)+1)
             print(self.progress)
-            r.hset(self.sess_id, 'progress', self.progress)
+            r.publish(self.sess_id, self.progress)
         if len(self.base_faces) == 0:
             filedets = 'none'
             filedims = 'none'
@@ -133,7 +133,7 @@ class DetectThread(threading.Thread):
             while job.result is None:
                 time.sleep(1)
             filedets, filedims = job.result
-        r.hset(self.sess_id, 'progress', 100)
+        r.publish(self.sess_id, 100)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
         r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
 
@@ -149,7 +149,8 @@ class AttackThread(threading.Thread):
         super().__init__()
 
     def run(self):
-        r.hset(self.sess_id, 'progress', 0)
+        sub.subscribe(self.sess_id)
+        r.publish(self.sess_id, 0)
         params, people = pre_proc_attack(self.attack, self.margin, self.amplification, self.selected, self.sess_id)
         jobs = []
         done_imgs = {}
@@ -172,17 +173,16 @@ class AttackThread(threading.Thread):
                                         amp=params['amp'],
                                         person=person,
                                         done_imgs=done_imgs)
-                    self.progress += 100/(joblen + 1)
-                    r.hset(self.sess_id, 'progress', self.progress)
+                    self.progress += 100/(joblen)
+                    r.publish(self.sess_id, self.progress)
                     print(self.progress)
                     remove.append(j)
             for i in remove:
                 jobs.remove(i)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
-        data = r.hgetall(self.sess_id)
-        data['progress'] = 100
-        r.hset(self.sess_id, mapping=data)
+        r.publish(self.sess_id, 100)
+
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -208,18 +208,25 @@ def handle_bad_request(e):
 
 @app.route('/progress/<sess_id>')
 def progress(sess_id):
-    def generate():
-        data = 0
-        while data <= 100:
-            data = r.hget(sess_id, 'progress')
-            if data is None:
-                data = 0
-            data = float(data)
-            time.sleep(1)
-            yield 'data:' + str(data) + '\n\n'
-        r.hset(sess_id, 'progress', 0)
-        return 'data:' + str(100) + '\n\n'
-    return Response(generate(), mimetype='text/event-stream')
+    if sess_id == 'undefined':
+        return ('', 204)
+    else:
+        def generate():
+            data = 0
+            prev = data
+            for message in sub.listen():
+                data = message['data']
+                if data is None:
+                    data = 0
+                data = float(data)
+                print(data)
+                if prev != data:
+                    yield 'data:' + str(data) + '\n\n'
+                    prev = data
+                if data >= 100:
+                    break
+            return 'data:' + str(100) + '\n\n'
+        return Response(generate(), mimetype='text/event-stream')
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -238,7 +245,7 @@ def handle_upload():
             sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
             while r.exists(sess_id):
                 sess_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 6))
-            data = {'detect': 'false', 'finish': 'false', 'attack': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'progress': 0, 'single': 'none'}
+            data = {'detect': 'false', 'finish': 'false', 'attack': 'none', 'time': 'none', 'amp': 'none', 'margin': 'none', 'single': 'none'}
             r.hset(sess_id, mapping=data)
             outfilenames = []
             for file in files:
@@ -314,6 +321,7 @@ def detected_faces():
         filedims = json.loads(r.hget(sess_id, 'filedims'))
     else:
         return error_message('Sorry, your session has expired.')
+    sub.unsubscribe(sess_id)
     r.hset(sess_id, 'detect', 'true')
     data = r.hgetall(sess_id)
     if data['finish'] == 'true':
@@ -381,6 +389,7 @@ def finish():
         return error_message('Sorry, your session has expired.')
     form1 = DownloadForm()
     form2 = LoopForm()
+    sub.unsubscribe(sess_id)
     r.hset(sess_id, 'finish', 'true')
     if request.method == 'GET':
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
