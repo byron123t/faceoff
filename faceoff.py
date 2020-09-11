@@ -217,9 +217,8 @@ def progress(sess_id):
             data = float(data)
             time.sleep(1)
             yield 'data:' + str(data) + '\n\n'
-            if data >= 100:
-                break
         r.hset(sess_id, 'progress', 0)
+        return 'data:' + str(100) + '\n\n'
     return Response(generate(), mimetype='text/event-stream')
 
 
