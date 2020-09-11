@@ -176,9 +176,9 @@ class AttackThread(threading.Thread):
                                 done_imgs=done_imgs)
             self.progress += 100/(joblen)
             r.publish(self.sess_id, self.progress)
-            print(self.progress)
+            #eprint(self.progress)
             app.logger.info('does it amplify and publish progress')
-        app.logger.info('it worked, idk whats going on')
+        #eprint('it worked, idk whats going on')
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         r.publish(self.sess_id, 100)
@@ -211,23 +211,21 @@ def progress(sess_id):
     if sess_id == 'undefined':
         return ('', 204)
     else:
-        def generate():
-            data = 0
-            prev = data
-            for message in sub.listen():
-                data = message['data']
-                if data is None:
-                    data = 0
-                data = float(data)
-                print(data)
-                app.logger.info(data)
-                if prev != data:
-                    yield 'data:' + str(data) + '\n\n'
-                    prev = data
-                if data >= 100:
-                    break
-            return 'data:' + str(100) + '\n\n'
-        return Response(generate(), mimetype='text/event-stream')
+        data = sub.get_message()['data']
+#        def generate():
+#            data = 0
+#            prev = data
+#            for message in sub.listen():
+#                data = message['data']
+#                if data is None:
+#                    data = 0
+#                data = float(data)
+#                #eprint(data)
+#                app.logger.info(data)
+#                if prev != data:
+#                    yield 'data:' + str(data) + '\n\n'
+#                    prev = data
+        return Response(str(data))
 
 
 @app.route('/', methods=['GET', 'POST'])

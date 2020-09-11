@@ -3,15 +3,18 @@ $(document).live('ready', function(){
 });
 
 async function check_progress(sess_id) {
-    console.log(sess_id);
-    var source = new EventSource("/progress/"+sess_id);
-    source.onmessage = function (event) {
-        console.log(event.data);
-        $("#prog").val(event.data);
-        $("#prog").html = event.data+"%";
-        if (event.data >= 100) {
-            source.close();
-            $("#done").submit();
+    if (sess_id != undefined) {
+        console.log(sess_id);
+        while(true) {
+            $.get("/progress/"+sess_id, function(data) {
+                console.log(data);
+                $("#prog").val(data);
+                $("#prog").html = data+"%";
+                if (data >= 100) {
+                    $("#done").submit();
+                }
+            });
+        await new Promise(r => setTimeout(r, 2000));
         }
     }
 }
