@@ -38,7 +38,6 @@ app = Flask(__name__)
 gpu = Queue('gpu', connection=Redis())
 cpu = Queue('cpu', connection=Redis())
 r = Redis(host='localhost', port=6379, password='', decode_responses=True)
-sub = r.pubsub()
 app.config['SECRET_KEY'] = b'\xcd u\xd5\xb4f 5\x18e\x1b\x0f\xf8\xee\x97\xd3'
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -106,8 +105,7 @@ class DetectThread(threading.Thread):
         super().__init__()
 
     def run(self):
-        sub.subscribe(self.sess_id)
-        r.publish(self.sess_id, 0)
+        r.hset(self.sess_id, 'progress', 0)
         imgfiles = []
         for outfile in self.outfilenames:
             npimg = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], outfile))
@@ -130,7 +128,7 @@ class DetectThread(threading.Thread):
                 self.count += 1
             self.progress += 100/(len(jobs)+1)
             print(self.progress)
-            r.publish(self.sess_id, self.progress)
+            r.hset(self.sess_id, 'progress', self.progress)
         if len(self.base_faces) == 0:
             filedets = 'none'
             filedims = 'none'
@@ -139,7 +137,7 @@ class DetectThread(threading.Thread):
             while job.result is None:
                 time.sleep(1)
             filedets, filedims = job.result
-        r.publish(self.sess_id, 100)
+        r.hset(self.sess_id, 'progress', 100)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
         r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
 
@@ -155,8 +153,7 @@ class AttackThread(threading.Thread):
         super().__init__()
 
     def run(self):
-        sub.subscribe(self.sess_id)
-        r.publish(self.sess_id, 0)
+        r.hset(self.sess_id, 'progress', 0)
         params, people = pre_proc_attack(self.attack, self.margin, self.amplification, self.selected, self.sess_id)
         jobs = []
         done_imgs = {}
@@ -175,13 +172,10 @@ class AttackThread(threading.Thread):
                                 person=person,
                                 done_imgs=done_imgs)
             self.progress += 100/(joblen)
-            r.publish(self.sess_id, self.progress)
-            #eprint(self.progress)
-            app.logger.info('does it amplify and publish progress')
-        #eprint('it worked, idk whats going on')
+            r.hset(self.sess_id, 'progress', self.progress)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
-        r.publish(self.sess_id, 100)
+        r.hset(self.sess_id, 'progress', 100)
 
 
 def allowed_file(filename):
@@ -211,20 +205,12 @@ def progress(sess_id):
     if sess_id == 'undefined':
         return ('', 204)
     else:
-        data = sub.get_message()['data']
-#        def generate():
-#            data = 0
-#            prev = data
-#            for message in sub.listen():
-#                data = message['data']
-#                if data is None:
-#                    data = 0
-#                data = float(data)
-#                #eprint(data)
-#                app.logger.info(data)
-#                if prev != data:
-#                    yield 'data:' + str(data) + '\n\n'
-#                    prev = data
+        data = r.hget(sess_id, 'progress')
+        if data is None:
+            data = 'none'
+        elif float(data) >= 100:
+            r.hset(sess_id, 'progress', 0)
+
         return Response(str(data))
 
 
@@ -320,7 +306,6 @@ def detected_faces():
         filedims = json.loads(r.hget(sess_id, 'filedims'))
     else:
         return error_message('Sorry, your session has expired.')
-    sub.unsubscribe(sess_id)
     r.hset(sess_id, 'detect', 'true')
     data = r.hgetall(sess_id)
     if data['finish'] == 'true':
@@ -382,7 +367,6 @@ def finish():
         return error_message('Sorry, your session has expired.')
     form1 = DownloadForm()
     form2 = LoopForm()
-    sub.unsubscribe(sess_id)
     r.hset(sess_id, 'finish', 'true')
     if request.method == 'GET':
         return render_template('finish.html', form1=form1, form2=form2, sess_id=sess_id)
