@@ -258,34 +258,34 @@ def handle_upload():
         session['sess_id'] = sess_id
         th = DetectThread(sess_id, outfilenames)
         th.start()
-        return redirect(url_for('select_pert'))
+        return redirect(url_for('uploading'))
     else:
         return render_template('index.html', form=form)
 
 
-@app.route('/select_pert', methods=['GET', 'POST'])
-def select_pert():
-    sess_id = session_attr('sess_id')
-    if sess_id is None:
-        return error_message('Sorry, your session has expired.')
-    data = r.hgetall(sess_id)
-    if data['finish'] == 'true':
-        return redirect(url_for('finish'))
-    elif data['detect'] == 'true':
-        return redirect(url_for('detected_faces'))
-    form = PertForm()
-    att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
-                'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
-    per_desc = {'desc1': ['Heavy Distortion', 'Normal Distortion', 'Light Distortion'],
-                'desc2': ['More Privacy', 'Some Privacy', 'Less Privacy']}
-    att_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
-    per_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
-    if request.method == 'GET':
-        return render_template('pert.html', form=form, att_desc=att_desc, per_desc=per_desc, att_file=att_file, per_file=per_file)
-    else:
-        session['attack'] = form.attacks.data
-        session['pert'] = form.perts.data
-        return redirect(url_for('uploading'))
+# @app.route('/select_pert', methods=['GET', 'POST'])
+# def select_pert():
+#     sess_id = session_attr('sess_id')
+#     if sess_id is None:
+#         return error_message('Sorry, your session has expired.')
+#     data = r.hgetall(sess_id)
+#     if data['finish'] == 'true':
+#         return redirect(url_for('finish'))
+#     elif data['detect'] == 'true':
+#         return redirect(url_for('detected_faces'))
+#     form = PertForm()
+#     att_desc = {'desc1': ['Long attack (CWLI)', 'Normal attack (CWL2)', 'Quick attack (PGDL2)'],
+#                 'desc2': ['~10 minutes', '~2 minutes', '~30 seconds']}
+#     per_desc = {'desc1': ['Heavy Distortion', 'Normal Distortion', 'Light Distortion'],
+#                 'desc2': ['More Privacy', 'Some Privacy', 'Less Privacy']}
+#     att_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
+#     per_file = ['img/logo-dark.png', 'img/logo-dark.png', 'img/logo-dark.png']
+#     if request.method == 'GET':
+#         return render_template('pert.html', form=form, att_desc=att_desc, per_desc=per_desc, att_file=att_file, per_file=per_file)
+#     else:
+#         session['attack'] = form.attacks.data
+#         session['pert'] = form.perts.data
+#         return redirect(url_for('uploading'))
 
 
 @app.route('/uploading', methods=['GET', 'POST'])
@@ -383,43 +383,27 @@ def finish():
 
 
 def parse_form():
-    attk = session_attr('attack')
-    pert = session_attr('pert')
+    pert = random.randrange(6)
     selected = session_attr('selected')
-    if attk == 0:
-        attack = 'CW'
-        if pert == 0:
-            margin = 5
-            amplification = 5.00
-        elif pert == 1:
-            margin = 5
-            amplification = 4.00
-        elif pert == 2:
-            margin = 5
-            amplification = 3.00
-        elif pert == 3:
-            margin = 5
-            amplification = 2.00
-        elif pert == 4:
-            margin = 5
-            amplification = 1.00
-    elif attk == 1:
-        attack = 'PGD'
-        if pert == 0:
-            margin = 5
-            amplification = 3.00
-        elif pert == 1:
-            margin = 5
-            amplification = 2.50
-        elif pert == 2:
-            margin = 5
-            amplification = 2.00
-        elif pert == 3:
-            margin = 5
-            amplification = 1.50
-        elif pert == 4:
-            margin = 5
-            amplification = 1.00
+    attack = 'CW'
+    if pert == 0:
+        margin = 10
+        amplification = 6.5
+    elif pert == 1:
+        margin = 10
+        amplification = 5.5
+    elif pert == 2:
+        margin = 10
+        amplification = 4.5
+    elif pert == 3:
+        margin = 10
+        amplification = 3.5
+    elif pert == 4:
+        margin = 10
+        amplification = 2.5
+    elif pert == 5:
+        margin = 10
+        amplification = 1.5
 
     return attack, margin, amplification, selected
 

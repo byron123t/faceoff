@@ -41,8 +41,9 @@
     <main role="main">    
 
       <section class="section text-center">
-          <h2 class="text-size-50 text-center text-white">Select Faces to Protect</h2>
-          <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-16">Please click on the faces you would like to hide.<br/>Click the arrows or drag the image if you've uploaded more than one photo.</p></div>
+          <h2 class="text-size-50 text-center text-white">Select Faces</h2>
+<!--           <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-16">Please click on the faces you would like to hide.<br/>Click the arrows or drag the image if you've uploaded more than one photo.</p></div> -->
+          <div class="s-12 m-10 l-8 text-center center"><p class="text-white margin-bottom-40 text-size-16">Please click on ONE face.<br/>Click the arrows or drag the image if you've uploaded more than one photo.</p></div>
           <hr class="break-small background-primary break-center">
           <form id="upload-det" enctype="multipart/form-data" action="" method="POST">
             {{form.csrf_token}}
