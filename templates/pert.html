@@ -46,13 +46,15 @@
           <div class="line">
             <div class="margin-top-bottom-80">
               <p class="text-thin text-white text-center">Note: This choice does not affect privacy, only the speed and distortion visibility</p>
-              <div class="slide-container s-3 m-2 l-1 text-center center">
+              <div class="slide-container s-4 m-3 l-2 text-center center">
                 {{ form.attacks(min=0, max=1, id='attack-slide', extra_classes='slider', oninput='attackUpdate(value)', style='width:100%;') }}
-                  <div style="display: flex; justify-content: space-between; padding: $unit $unit
+                <div style="display: flex; justify-content: space-between; padding: $unit $unit
                   *2;">
+                  <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Slow</span>
+                  <span class="text-white text-size-20" style="position: relative; display: flex; justify-content: center;">Quick</span>
                 </div>
             </div>
-            <h2 class="text-white text-center" id="attack-display">Subtle+Slow<br/>(~30s / unique face)<br/>Very Subtle Distortion</h2>
+            <h2 class="text-white text-center" id="attack-display">Subtle Distortion<br/>(~30s / unique face)</h2>
           </div>
           <div class="margin-top-bottom-80">
             <div class="slide-container">

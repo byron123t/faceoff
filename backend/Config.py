@@ -1,6 +1,5 @@
 import os, cv2
 import numpy as np
-from redis import Redis, StrictRedis
 
 
 ROOT = os.path.abspath('./backend')

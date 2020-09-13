@@ -28,10 +28,10 @@ from logging.handlers import RotatingFileHandler
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg'}
-RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 
@@ -390,19 +390,19 @@ def parse_form():
         attack = 'CW'
         if pert == 0:
             margin = 5
-            amplification = 7.00
+            amplification = 5.00
         elif pert == 1:
             margin = 5
-            amplification = 5.75
+            amplification = 4.00
         elif pert == 2:
             margin = 5
-            amplification = 4.50
+            amplification = 3.00
         elif pert == 3:
             margin = 5
-            amplification = 3.25
+            amplification = 2.00
         elif pert == 4:
             margin = 5
-            amplification = 2.00
+            amplification = 1.00
     elif attk == 1:
         attack = 'PGD'
         if pert == 0:
