@@ -137,7 +137,7 @@ class DetectThread(threading.Thread):
             while job.result is None:
                 time.sleep(1)
             filedets, filedims = job.result
-        r.hset(self.sess_id, 'progress', 100)
+        r.hset(self.sess_id, 'progress', 101)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
         r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
 
@@ -183,7 +183,7 @@ class AttackThread(threading.Thread):
                 jobs.remove(i)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
-        r.hset(self.sess_id, 'progress', 100)
+        r.hset(self.sess_id, 'progress', 101)
 
 
 def allowed_file(filename):
@@ -383,27 +383,29 @@ def finish():
 
 
 def parse_form():
-    pert = random.randrange(6)
+    # pert = random.randrange(6)
     selected = session_attr('selected')
     attack = 'CW'
-    if pert == 0:
-        margin = 10
-        amplification = 6.5
-    elif pert == 1:
-        margin = 10
-        amplification = 5.5
-    elif pert == 2:
-        margin = 10
-        amplification = 4.5
-    elif pert == 3:
-        margin = 10
-        amplification = 3.5
-    elif pert == 4:
-        margin = 10
-        amplification = 2.5
-    elif pert == 5:
-        margin = 10
-        amplification = 1.5
+    margin = 10
+    amplification = 12
+    #if pert == 0:
+    #    margin = 10
+    #    amplification = 6.5
+    #elif pert == 1:
+    #    margin = 10
+    #    amplification = 5.5
+    #elif pert == 2:
+    #    margin = 10
+    #    amplification = 4.5
+    #elif pert == 3:
+    #    margin = 10
+    #    amplification = 3.5
+    #elif pert == 4:
+    #    margin = 10
+    #    amplification = 2.5
+    #elif pert == 5:
+    #    margin = 10
+    #    amplification = 1.5
 
     return attack, margin, amplification, selected
 
