@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn instance to serve faceoff
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/faceoff
+Environment="PATH=/usr/local/anaconda3/envs/faceoff/bin"
+ExecStart=/usr/local/anaconda3/envs/faceoff/bin/gunicorn --workers 3 --bind unix:faceoff.sock -m 007 wsgi:app
+
+[Install]
+WantedBy=multi-user.target
