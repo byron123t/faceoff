@@ -66,7 +66,8 @@ def set_parameters(targeted_flag='true',
                    mean_loss='embeddingmean',
                    batch_size=-1,
                    margin=5.0,
-                   amplification=2.0):
+                   amplification=2.0,
+                   scale_flag='false'):
     """Creates and returns a dictionary of parameters."""
     params = {}
 
@@ -87,6 +88,7 @@ def set_parameters(targeted_flag='true',
     params['tv_flag'] = string_to_bool(tv_flag)
     params['hinge_flag'] = string_to_bool(hinge_flag)
     params['cos_flag'] = string_to_bool(cos_flag)
+    params['scale_flag'] = string_to_bool(scale_flag)
     params['margin'] = margin
     params['amp'] = amplification
 

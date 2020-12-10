@@ -4,6 +4,8 @@ import numpy as np
 from backend.Attack import outer_attack
 from backend.Utils import face_recognition, match_closest
 from multiprocessing import Pool
+# from scaleatt.Attack import attack
+from backend.Crop import apply_image
 
 
 def _face_recognition(faces, threshold, batch_size):
@@ -14,6 +16,11 @@ def _face_recognition(faces, threshold, batch_size):
 def _face_attack(params, person):
     with Pool(processes=1) as pool:
         return pool.apply(outer_attack, (params, person))
+
+
+def _image_scaling(person):
+    with Pool(processes=1) as pool:
+        return pool.apply(attack, (person))
 
 
 def attack_listener(params, person, sess_id):
@@ -44,3 +51,9 @@ def recognize_listener(base_faces, filenames, dets, imgs, counts, img_map, sess_
         count += 1
     np.savez(os.path.join(Config.UPLOAD_FOLDER, sess_id + 'data.npz'), pairs=lfw_pairs, dets=filedets, filenames=filenames, counts=counts)
     return filedets, filedims
+
+
+def scale_listener(person, sess_id):
+    attack_image = _image_scaling(person)
+    img = apply_image(attack_image, person['base']['img'], person['base']['dets'])
+    imageio.imwrite('scale_{}_{}.png', )

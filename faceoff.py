@@ -28,10 +28,10 @@ from logging.handlers import RotatingFileHandler
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg'}
-RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 
@@ -184,6 +184,10 @@ class AttackThread(threading.Thread):
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         r.hset(self.sess_id, 'progress', 100)
+
+
+        # for i in range(len(people)):
+        #     scale.enqueue(scale_listener, people[i], sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=500)
 
 
 def allowed_file(filename):
@@ -383,27 +387,29 @@ def finish():
 
 
 def parse_form():
-    pert = random.randrange(6)
+    # pert = random.randrange(6)
     selected = session_attr('selected')
     attack = 'CW'
-    if pert == 0:
-        margin = 10
-        amplification = 6.5
-    elif pert == 1:
-        margin = 10
-        amplification = 5.5
-    elif pert == 2:
-        margin = 10
-        amplification = 4.5
-    elif pert == 3:
-        margin = 10
-        amplification = 3.5
-    elif pert == 4:
-        margin = 10
-        amplification = 2.5
-    elif pert == 5:
-        margin = 10
-        amplification = 1.5
+    margin = 10
+    amplification = 7
+    # if pert == 0:
+    #     margin = 10
+    #     amplification = 6.5
+    # elif pert == 1:
+    #     margin = 10
+    #     amplification = 5.5
+    # elif pert == 2:
+    #     margin = 10
+    #     amplification = 4.5
+    # elif pert == 3:
+    #     margin = 10
+    #     amplification = 3.5
+    # elif pert == 4:
+    #     margin = 10
+    #     amplification = 2.5
+    # elif pert == 5:
+    #     margin = 10
+    #     amplification = 1.5
 
     return attack, margin, amplification, selected
 
@@ -412,7 +418,8 @@ def pre_proc_attack(attack, margin, amplification, selected, sess_id):
     params = Config.set_parameters(attack=attack,
                                    margin=margin,
                                    amplification=amplification,
-                                   mean_loss='embedding')
+                                   mean_loss='embedding',
+                                   scale_flag='true')
     people = load_images(params=params,
                          selected=selected,
                          sess_id=sess_id)

@@ -60,9 +60,11 @@ def crop_face(img, detector, outfilename, sess_id):
         bb[2] = np.minimum(det[2]+margin/2, img_size[1])
         bb[3] = np.minimum(det[3]+margin/2, img_size[0])
         cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
-        scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
-        scaled = scaled[...,::-1]
         index = outfilename.index('.')
+        cropped = cropped[...,::-1]
+        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}_full.png'.format(sess_id, outfilename[:index], count)),cropped)
+        scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
+        
         imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
         count += 1
         
@@ -84,6 +86,9 @@ def apply_delta(delta, img, det, params):
     """
 
     margin = 4
+
+    adv_img = img * 1
+
     img_size = np.asarray(img.shape)[0:2]
     bb = np.zeros(4, dtype=np.int32)
     bb[0] = np.maximum(det[0]-margin/2, 0)
@@ -92,11 +97,40 @@ def apply_delta(delta, img, det, params):
     bb[3] = np.minimum(det[3]+margin/2, img_size[0])
 
     orig_dim = [bb[3]-bb[1], bb[2]-bb[0]]
-
     delta_up = cv2.resize(delta, (orig_dim[1], orig_dim[0]), params['interpolation'])
-    img[bb[1]:bb[3],bb[0]:bb[2],:3] += delta_up
-    img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.maximum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 0)
-    img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.minimum(img[bb[1]:bb[3],bb[0]:bb[2],:3], 1)
+
+    if params['scale_flag'] and delta.shape[0]*1.7 < orig_dim[0] and delta.shape[1]*1.7 < orig_dim[1]:
+        try:
+            adv = (adv * 255).astype(np.uint8)
+            cropped = (adv_img[bb[1]:bb[3], bb[0]:bb[2],:] * 255).astype(np.uint8)
+            delta_up = scale_attack(adv, cropped)
+            delta_up = np.around(delta_up / 255.0, decimals=12)
+            adv_img[bb[1]:bb[3], bb[0]:bb[2],:] = delta_up
+        except Exception as e:
+            print(e)
+    else:
+        adv_img[bb[1]:bb[3],bb[0]:bb[2],:3] += delta_up
+    # temp_img = img[bb[1]:bb[3],bb[0]:bb[2],:3]
+    # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, 'temp_crop.png'), temp_img)
+    # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, 'temp_crop_adv.png'), cv2.resize(temp_img, (112,96), cv2.INTER_LINEAR))
+    # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, 'temp_delta.png'), delta_up)
+    # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, 'temp_delta_adv.png'), delta)
+    adv_img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.maximum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:3], 0)
+    adv_img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.minimum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:3], 1)
+
+    return adv_img
+
+
+def apply_image(adv_img, img, det):
+    margin = 4
+    img_size = np.asarray(img.shape)[0:2]
+    bb = np.zeros(4, dtype=np.int32)
+    bb[0] = np.maximum(det[0]-margin/2, 0)
+    bb[1] = np.maximum(det[1]-margin/2, 0)
+    bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+    bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+
+    img[bb[1]:bb[3],bb[0]:bb[2],:3] = adv_img
 
     return img
 

@@ -2,6 +2,8 @@ import numpy as np
 from backend import Config
 from backend.Crop import apply_delta
 from backend.Utils import transpose_back
+import imageio
+import os
 
 
 def amplify(params,
@@ -23,7 +25,7 @@ def amplify(params,
         if delta[i] is not None:
             if filename in done_imgs:
                 img = done_imgs[filename]
-
+            imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, 'light_delta.png'), delta[i])
             cur_delta = delta[i] * amp
             cur_face = face[i]
             
