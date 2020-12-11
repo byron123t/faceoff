@@ -13,12 +13,12 @@
     <link href='https://fonts.googleapis.com/css?family=Playfair+Display&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700,800&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
     <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-1.8.3.min.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>     
-    <script type="text/javascript" src="{{ url_for('static', filename='js/finish.js') }}"></script> 
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.jpg') }}" />
   </head>
   
-  <body class="size-1140" style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover; background-repeat: no-repeat;">
+  <body class="size-1140"  style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover;">
+
     <header role="banner" class="position-absolute">    
       <nav class="background-transparent background-transparent-hightlight full-width sticky">
         <div class="s-12 l-2">
@@ -42,32 +42,45 @@
     </header>
     
     <main role="main">    
-      <section class="section text-center"> 
-        <h2 class="text-size-50 text-center text-white">Your download is ready!</h2>
-        <div class="s-12 m-10 l-8 text-center center">
-          <p class="text-white margin-bottom-10 text-size-20">Thanks for waiting</p>
+      <header>
+        <div class="s-12">
+          <section class="section">
+            <div class="line">
+              <h2 class="text-size-70 text-center text-white">Additional Materials</h2>
+              <hr class="break-small background-primary break-center">
+            </div>
+            <div class="line">
+              <div class="margin">  
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Media</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <ul>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="https://docs.google.com/presentation/d/1yIdt3KiRL5TGJh5OYfHuaMRUtJBXGuebk91XwNdtLhU/edit?usp=sharing">Slide Deck</a></li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="https://www.youtube.com/watch?v=LJtcpZmz7JY&feature=youtu.be">Video Demonstration</a></li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="{{ url_for('static', filename='report.pdf') }}">Written Report</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Code</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <ul>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="https://github.com/EQuiw/2019-scalingattack/tree/5633ac95b0ce313eb2fe5164ab9801c6954e2152">Image Scaling Attack</a></li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="https://github.com/wi-pi/face-off">Face-Off</a></li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"><a href="https://github.com/serengil/deepface">DeepFace</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div class="s-12 m-12 l-3 center">
-          <form id="download" enctype="multipart/form-data" action="" method="POST">
-            {{form1.csrf_token}}
-            {{form1.download(hidden="true", id="download-input")}}
-          </form>
-          <button id="download-btn" class="button button-white-stroke s-12 margin-top-bottom-10 text-size-20">
-            Download
-          </button>
-          <form id="doagain" enctype="multipart/form-data" action="" method="POST">
-            {{form2.csrf_token}}
-            {{form2.doagain(hidden="true", id="doagain-input")}}
-          </form>
-          <button id="doagain-btn" class="button button-white-stroke s-12 margin-top-bottom-10 text-size-20">
-            Upload More
-          </button>
-        </div>
-        <div class="s-12 m-10 l-8 text-center center margin-top-60">
-          <p class="text-white margin-bottom-10 text-size-20">Your survey code is:</p>
-        </div>
-        <h2 class="text-size-50 text-center text-white">{{sess_id}}</h2>
-      </section>
+      </header>
+    </main>
     <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>

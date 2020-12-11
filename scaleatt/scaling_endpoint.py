@@ -22,6 +22,9 @@ ALGORITHMS = {'nearest':SuppScalingAlgorithms.NEAREST,
               'bicubic':SuppScalingAlgorithms.CUBIC,
               'lanczos':SuppScalingAlgorithms.LANCZOS,
               'area':SuppScalingAlgorithms.AREA}
+args_bandwidthfactor: int = 2
+usecythonifavailable: bool = True
+args_allowed_changes: int = 20 # the percentage of pixels that can be modified in each block.
 
 
 def scale_attack(delta, src_img):
@@ -41,5 +44,24 @@ def scale_attack(delta, src_img):
     result_attack_image, _, _ = scale_att.attack(src_image=src_img,
                                                  target_image=delta,
                                                  scaler_approach=scaler_approach)
+    
+    # fourierpeakmatrixcollector: FourierPeakMatrixCollector = FourierPeakMatrixCollector(
+    #     method=PeakMatrixMethod.optimization, scale_library=scaling_library, scale_algorithm=scaling_algorithm)
+
+    # args_prevention_type = PreventionTypeDefense.medianfiltering
+    # preventiondefense: PreventionDefense = PreventionDefenseGenerator.create_prevention_defense(
+    #             defense_type=args_prevention_type, scaler_approach=scaler_approach,
+    #             fourierpeakmatrixcollector=fourierpeakmatrixcollector,
+    #             bandwidth=args_bandwidthfactor, verbose_flag=False, usecythonifavailable=usecythonifavailable)
+
+    # ## New! Init and run the adaptive attack
+    # adaptiveattack: AdaptiveAttackOnAttackImage = AdaptiveAttackPreventionGenerator.create_adaptive_attack(
+    #             defense_type=args_prevention_type, scaler_approach=scaler_approach,
+    #             preventiondefense=preventiondefense,
+    #             verbose_flag=False, usecythonifavailable=usecythonifavailable,
+    #             choose_only_unused_pixels_in_overlapping_case=False,
+    #             allowed_changes=args_allowed_changes/100)
+
+    # adaptiveattackimage = adaptiveattack.counter_attack(att_image=result_attack_image)
 
     return result_attack_image

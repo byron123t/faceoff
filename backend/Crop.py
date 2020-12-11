@@ -3,6 +3,7 @@ import numpy as np
 import imageio
 import cv2
 from backend import Config
+from scaleatt.scaling_endpoint import scale_attack
 
 
 def pre_proc(img, params):
@@ -62,10 +63,10 @@ def crop_face(img, detector, outfilename, sess_id):
         cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
         index = outfilename.index('.')
         cropped = cropped[...,::-1]
-        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}_full.png'.format(sess_id, outfilename[:index], count)),cropped)
+        # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}_full.png'.format(sess_id, outfilename[:index], count)),cropped)
         scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
         
-        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
+        # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
         count += 1
         
         face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)

@@ -413,5 +413,29 @@ def about():
     return render_template('about.html')
 
 
+@app.route('/motivation', methods=['GET'])
+def motivation():
+    return render_template('motivation.html')
+
+
+@app.route('/methodology', methods=['GET'])
+def methodology():
+    return render_template('methodology.html')
+
+
+@app.route('/results', methods=['GET'])
+def results():
+    return render_template('results.html')
+
+
+@app.route('/challenges', methods=['GET'])
+def challenges():
+    return render_template('challenges.html')
+
+@app.route('/materials', methods=['GET'])
+def materials():
+    return render_template('materials.html')
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

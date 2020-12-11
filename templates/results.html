@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face-Off</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsee.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='owl-carousel/owl.carousel.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='owl-carousel/owl.theme.css') }}">     
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/template-style.css') }}">
+    <link href='https://fonts.googleapis.com/css?family=Playfair+Display&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700,800&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-1.8.3.min.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/jquery-ui.min.js') }}"></script>
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='img/shortcut.jpg') }}" />
+  </head>
+  
+  <body class="size-1140"  style="background-image: url({{ url_for('static', filename='img/header4-8.jpg') }}); background-size: cover;">
+
+    <header role="banner" class="position-absolute">    
+      <nav class="background-transparent background-transparent-hightlight full-width sticky">
+        <div class="s-12 l-2">
+          <a href="/" class="logo">
+            <img class="logo-white" src="{{ url_for('static', filename='img/logo.png') }}" alt="">
+            <img class="logo-dark" src="{{ url_for('static', filename='img/logo-dark.png') }}" alt="">
+          </a>
+        </div>
+        <div class="top-nav s-12 l-10">
+          <p class="nav-text"></p>
+          <ul class="right chevron">
+            <li><a href="/">Home</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/motivation">Motivation</a></li>
+            <li><a href="/methodology">Methodology</a></li>
+            <li><a href="/results">Results</a></li>
+            <li><a href="/materials">Materials</a></li>
+          </ul>
+        </div>
+      </nav>
+    </header>
+    
+    <main role="main">    
+      <header>
+        <div class="s-12">
+          <section class="section">
+            <div class="line">
+              <h2 class="text-size-70 text-center text-white">Image Scaling Results</h2>
+              <hr class="break-small background-primary break-center">
+            </div>
+            <div class="line">
+              <div class="margin">  
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Challenges</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <ul>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> The initial results of the API evaluation yielded no definitive findings: all the returned scores were 0.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> To address the API issue, a stronger image scaling attack was used at the expense of the attack's perceptibility.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> Due to time and funding constraints, the stronger image scaling attack + adversarial attack was not evaluated online.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Image Scaling Attack + Adversarial Attack</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                   <ul>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> The weak image scaling attack + adversarial attack do not need to be evaluated with a perceptual similarity metric, as the differences are vast.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> The robust image scaling attack + adversarial attack looks less perceptible than the plain adversarial attack, but more perceptible than the previous attack combination.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> The runtime of the robust linear scaling attack averaged 235.36 seconds, and the runtime of the weak linear scaling attack averaged 161.09 seconds (batches of 5 images).</li>
+                  </ul>
+                  <img src="{{ url_for('static', filename='img/scaledvsadv.png') }}" alt="">
+                  <img src="{{ url_for('static', filename='img/robustadvscale.png') }}" alt="">
+                </div>
+              </div>
+            </div>
+            <div class="line margin-top-bottom-60">
+              <div class="margin">
+                <div class="s-12 m-12 l-3">
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Online APIs</p>
+                </div>
+                <div class="s-12 m-12 l-7">
+                  <ul>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> In order to extract meaningful results from the API evaluation, a new dataset was constructed using a stronger image scaling attack capable of altering more pixels.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> While a specific input size was not found, a range was identified.</li>
+                    <li class="text-size-20 margin-m-bottom-30 text-white"> Both APIs utilized linear scaling and MTCNN, though the OpenCV attacks were also effective on AWS.</li>
+                  </ul>
+                  <img src="{{ url_for('static', filename='img/table.png') }}" alt="">
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </header>
+    </main>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/responsee.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='owl-carousel/owl.carousel.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/template-scripts.js') }}"></script>
+  </body>
+</html>
