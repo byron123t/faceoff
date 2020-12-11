@@ -34,7 +34,7 @@
             <li><a href="/about">About</a></li>
             <li><a href="/motivation">Motivation</a></li>
             <li><a href="/methodology">Methodology</a></li>
-            <li><a href="/results">Results</a></li>
+            <li><a href="/results#results">Results</a></li>
             <li><a href="/materials">Materials</a></li>
           </ul>
         </div>
@@ -44,7 +44,7 @@
     <main role="main">    
       <header>
         <div class="s-12">
-          <section class="section">
+          <section class="section" id="results">
             <div class="line">
               <h2 class="text-size-70 text-center text-white">Image Scaling Results</h2>
               <hr class="break-small background-primary break-center">
@@ -66,16 +66,16 @@
             <div class="line margin-top-bottom-60">
               <div class="margin">
                 <div class="s-12 m-12 l-3">
-                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Image Scaling Attack + Adversarial Attack</p>
+                  <p class="h1 text-size-40 margin-m-bottom-30 text-white text-line-height-1 text-right">Image Scaling Attack Adversarial Attack</p>
                 </div>
                 <div class="s-12 m-12 l-7">
                    <ul>
                     <li class="text-size-20 margin-m-bottom-30 text-white"> The weak image scaling attack + adversarial attack do not need to be evaluated with a perceptual similarity metric, as the differences are vast.</li>
+                    <li><img src="{{ url_for('static', filename='img/scaledvsadv.png') }}" alt=""></li>
                     <li class="text-size-20 margin-m-bottom-30 text-white"> The robust image scaling attack + adversarial attack looks less perceptible than the plain adversarial attack, but more perceptible than the previous attack combination.</li>
+                    <li><img src="{{ url_for('static', filename='img/robustadvscale.png') }}" alt=""></li>
                     <li class="text-size-20 margin-m-bottom-30 text-white"> The runtime of the robust linear scaling attack averaged 235.36 seconds, and the runtime of the weak linear scaling attack averaged 161.09 seconds (batches of 5 images).</li>
                   </ul>
-                  <img src="{{ url_for('static', filename='img/scaledvsadv.png') }}" alt="">
-                  <img src="{{ url_for('static', filename='img/robustadvscale.png') }}" alt="">
                 </div>
               </div>
             </div>
@@ -89,8 +89,8 @@
                     <li class="text-size-20 margin-m-bottom-30 text-white"> In order to extract meaningful results from the API evaluation, a new dataset was constructed using a stronger image scaling attack capable of altering more pixels.</li>
                     <li class="text-size-20 margin-m-bottom-30 text-white"> While a specific input size was not found, a range was identified.</li>
                     <li class="text-size-20 margin-m-bottom-30 text-white"> Both APIs utilized linear scaling and MTCNN, though the OpenCV attacks were also effective on AWS.</li>
+                    <li><img src="{{ url_for('static', filename='img/table.png') }}" alt=""></li>
                   </ul>
-                  <img src="{{ url_for('static', filename='img/table.png') }}" alt="">
                 </div>
               </div>
             </div>

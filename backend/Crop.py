@@ -61,12 +61,10 @@ def crop_face(img, detector, outfilename, sess_id):
         bb[2] = np.minimum(det[2]+margin/2, img_size[1])
         bb[3] = np.minimum(det[3]+margin/2, img_size[0])
         cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
-        index = outfilename.index('.')
-        cropped = cropped[...,::-1]
-        # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}_full.png'.format(sess_id, outfilename[:index], count)),cropped)
         scaled = cv2.resize(cropped, (image_height, image_width), interpolation)
-        
-        # imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
+        scaled = scaled[...,::-1]
+        index = outfilename.index('.')
+        imageio.imwrite(os.path.join(Config.UPLOAD_FOLDER, '{}{}_{}.png'.format(sess_id, outfilename[:index], count)),scaled)
         count += 1
         
         face = np.around(np.transpose(scaled, (2,0,1))/255.0, decimals=12)
@@ -120,20 +118,6 @@ def apply_delta(delta, img, det, params):
     adv_img[bb[1]:bb[3],bb[0]:bb[2],:3] = np.minimum(adv_img[bb[1]:bb[3],bb[0]:bb[2],:3], 1)
 
     return adv_img
-
-
-def apply_image(adv_img, img, det):
-    margin = 4
-    img_size = np.asarray(img.shape)[0:2]
-    bb = np.zeros(4, dtype=np.int32)
-    bb[0] = np.maximum(det[0]-margin/2, 0)
-    bb[1] = np.maximum(det[1]-margin/2, 0)
-    bb[2] = np.minimum(det[2]+margin/2, img_size[1])
-    bb[3] = np.minimum(det[3]+margin/2, img_size[0])
-
-    img[bb[1]:bb[3],bb[0]:bb[2],:3] = adv_img
-
-    return img
 
 
 def read_face_from_aligned(file_list, params):

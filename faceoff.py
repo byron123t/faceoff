@@ -137,7 +137,7 @@ class DetectThread(threading.Thread):
             while job.result is None:
                 time.sleep(1)
             filedets, filedims = job.result
-        r.hset(self.sess_id, 'progress', 101)
+        r.hset(self.sess_id, 'progress', 100)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
         r.hset(self.sess_id, key='filedims', value=json.dumps(filedims))
 
@@ -183,11 +183,7 @@ class AttackThread(threading.Thread):
                 jobs.remove(i)
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
-        r.hset(self.sess_id, 'progress', 101)
-
-
-        # for i in range(len(people)):
-        #     scale.enqueue(scale_listener, people[i], sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=500)
+        r.hset(self.sess_id, 'progress', 100)
 
 
 def allowed_file(filename):
