@@ -158,7 +158,7 @@ class AttackThread(threading.Thread):
         jobs = []
         done_imgs = {}
         deltas = []
-        people = []
+        persons = []
         for i in range(len(people)):
             jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=500))
         joblen = len(jobs)
@@ -170,7 +170,7 @@ class AttackThread(threading.Thread):
             for j in jobs:
                 if j.get_status() == 'finished':
                     person, delta = j.result
-                    people.append(person)
+                    persons.append(person)
                     deltas.append(delta)
                     # done_imgs = amplify(params=params,
                     #                     face=person['base']['face'],
@@ -185,7 +185,7 @@ class AttackThread(threading.Thread):
                     doneall = False
             for i in remove:
                 jobs.remove(i)
-        job = gpu.enqueue(amplify_listener, params, deltas, people)
+        job = gpu.enqueue(amplify_listener, params, deltas, persons)
         done = False
         while not done:
             time.sleep(1)
