@@ -157,6 +157,8 @@ class AttackThread(threading.Thread):
         params, people = pre_proc_attack(self.attack, self.margin, self.amplification, self.selected, self.sess_id)
         jobs = []
         done_imgs = {}
+        deltas = []
+        people = []
         for i in range(len(people)):
             jobs.append(gpu.enqueue(attack_listener, params, people[i], self.sess_id, job_timeout=1500, retry=Retry(max=10, interval=1), result_ttl=500))
         joblen = len(jobs)
@@ -168,19 +170,30 @@ class AttackThread(threading.Thread):
             for j in jobs:
                 if j.get_status() == 'finished':
                     person, delta = j.result
-                    done_imgs = amplify(params=params,
-                                        face=person['base']['face'],
-                                        delta=delta,
-                                        amp=params['amp'],
-                                        person=person,
-                                        done_imgs=done_imgs)
+                    people.append(person)
+                    deltas.append(delta)
+                    # done_imgs = amplify(params=params,
+                    #                     face=person['base']['face'],
+                    #                     delta=delta,
+                    #                     amp=params['amp'],
+                    #                     person=person,
+                    #                     done_imgs=done_imgs)
                     remove.append(j)
-                    self.progress += 100/(joblen)
+                    self.progress += 100/(joblen*2)
                     r.hset(self.sess_id, 'progress', self.progress)
                 else:
                     doneall = False
             for i in remove:
                 jobs.remove(i)
+        job = gpu.enqueue(amplify_listener, params, deltas, people)
+        done = False
+        while not done:
+            time.sleep(1)
+            if job.get_status() == 'finished':
+                done_imgs = job.result
+                done = True
+            self.progress += 0.05
+
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)
         r.hset(self.sess_id, 'progress', 100)

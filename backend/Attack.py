@@ -50,6 +50,13 @@ def amplify(params,
     return done_imgs
 
 
+def amplify_loop(params, deltas, people):
+    done_imgs = {}
+    for delta, person in zip(deltas, people):
+        done_imgs = amplify(params, person['base']['face'], delta, params['amp'], person, done_imgs)
+    return done_imgs
+
+
 # ATTENTION!
 # 'adv' and 'delta' are RGB for triplet model, BGR for center face model --> verify brian
 def find_adv(sess,

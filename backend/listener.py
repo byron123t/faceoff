@@ -1,7 +1,7 @@
 from backend import Config
 import os
 import numpy as np
-from backend.Attack import outer_attack
+from backend.Attack import outer_attack, amplify_loop
 from backend.Utils import face_recognition, match_closest
 from multiprocessing import Pool
 
@@ -16,15 +16,19 @@ def _face_attack(params, person):
         return pool.apply(outer_attack, (params, person))
 
 
-def _image_scaling(person):
+def _amplify(params, deltas, people):
     with Pool(processes=1) as pool:
-        return pool.apply(attack, (person))
+        return pool.apply(amplify_loop, (params, deltas, people))
 
 
 def attack_listener(params, person, sess_id):
-    done_imgs = {}
     person, delta = _face_attack(params, person)
     return person, delta
+
+
+def amplify_listener(params, deltas, people):
+    done_imgs = _amplify(params, deltas, people)
+    return done_imgs
 
 
 def recognize_listener(base_faces, filenames, dets, imgs, counts, img_map, sess_id):
