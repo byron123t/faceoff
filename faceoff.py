@@ -118,6 +118,8 @@ class DetectThread(threading.Thread):
         for i, job in enumerate(jobs):
             while job.result is None:
                 time.sleep(1)
+                self.progress += 1
+                r.hset(self.sess_id, 'progress', self.progress)
             b, f, im, d, c = job.result
             self.base_faces.extend(b)
             self.filenames.extend(f)
@@ -127,7 +129,7 @@ class DetectThread(threading.Thread):
                 self.counts.append(j)
                 self.img_map[self.count] = i
                 self.count += 1
-            self.progress += 100/(len(jobs)+1)
+            self.progress += 100/(len(jobs)+2)
             r.hset(self.sess_id, 'progress', self.progress)
         if len(self.base_faces) == 0:
             filedets = 'none'
@@ -136,6 +138,8 @@ class DetectThread(threading.Thread):
             job = gpu.enqueue(recognize_listener, self.base_faces, self.filenames, self.dets, self.imgs, self.counts, self.img_map, self.sess_id)
             while job.result is None:
                 time.sleep(1)
+                self.progress += 0.5
+                r.hset(self.sess_id, 'progress', self.progress)
             filedets, filedims = job.result
         r.hset(self.sess_id, 'progress', 100)
         r.hset(self.sess_id, key='filedets', value=json.dumps(filedets))
@@ -179,10 +183,12 @@ class AttackThread(threading.Thread):
                     #                     person=person,
                     #                     done_imgs=done_imgs)
                     remove.append(j)
-                    self.progress += 100/(joblen*2)
+                    self.progress += 50/(joblen*2)
                     r.hset(self.sess_id, 'progress', self.progress)
                 else:
                     doneall = False
+                    self.progress += 0.05
+                    r.hset(self.sess_id, 'progress', self.progress)
             for i in remove:
                 jobs.remove(i)
         job = gpu.enqueue(amplify_listener, params, deltas, persons)
@@ -193,6 +199,7 @@ class AttackThread(threading.Thread):
                 done_imgs = job.result
                 done = True
             self.progress += 0.05
+            r.hset(self.sess_id, 'progress', self.progress)
 
         save_image(done_imgs=done_imgs,
                sess_id=self.sess_id)

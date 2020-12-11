@@ -102,8 +102,11 @@ def apply_delta(delta, img, det, params, adv):
         try:
             adv = (adv * 255).astype(np.uint8)
             cropped = (adv_img[bb[1]:bb[3], bb[0]:bb[2],:] * 255).astype(np.uint8)
+            print(adv.shape)
+            print(cropped.shape)
             delta_up = scale_attack(adv, cropped)
             delta_up = np.around(delta_up / 255.0, decimals=12)
+            print(delta_up.shape)
             adv_img[bb[1]:bb[3], bb[0]:bb[2],:] = delta_up
         except Exception as e:
             print(e)
