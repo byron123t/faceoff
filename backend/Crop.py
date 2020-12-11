@@ -77,7 +77,7 @@ def crop_face(img, detector, outfilename, sess_id):
     return faces, dets, count
 
 
-def apply_delta(delta, img, det, params):
+def apply_delta(delta, img, det, params, adv):
     """
     Description
 

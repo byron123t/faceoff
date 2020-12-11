@@ -38,9 +38,9 @@ def amplify(params,
             delta_clip = adv_crop - temp_face
 
             if len(delta_clip.shape) == 3:
-                adv_img = apply_delta(delta_clip, img, det, params)  ## BEWARE!!!!!!! of not squaring the amplification
+                adv_img = apply_delta(delta_clip, img, det, params, adv_crop)  ## BEWARE!!!!!!! of not squaring the amplification
             else:
-                adv_img = apply_delta(delta_clip[0], img, det, params)  ## BEWARE!!!!!!! of not squaring the amplification
+                adv_img = apply_delta(delta_clip[0], img, det, params, adv_crop)  ## BEWARE!!!!!!! of not squaring the amplification
 
             done_imgs[filename] = adv_img
 
