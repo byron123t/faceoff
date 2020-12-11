@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 from backend.Utils import load_images, save_image
 from backend import Config
-from backend.listener import attack_listener, recognize_listener
+from backend.listener import attack_listener, recognize_listener, amplify_listener
 from backend.Detect import detect_listener
 from backend.Attack import amplify
 from wtforms import BooleanField, StringField, MultipleFileField, SubmitField
