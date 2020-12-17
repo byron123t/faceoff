@@ -28,10 +28,10 @@ from logging.handlers import RotatingFileHandler
 ROOT = os.path.abspath('.')
 UPLOAD_FOLDER = os.path.join(ROOT, 'static', 'temp')
 EXTENSIONS = {'png', 'jpg', 'jpeg'}
-# RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
-# RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
-RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+RECAPTCHA_PUBLIC_KEY = '6LdldMIZAAAAADWxxMHKOlH3mFFxt8BRVJAkSf6T'
+RECAPTCHA_PRIVATE_KEY = '6LdldMIZAAAAAPyqq3ildSIGiPRcBJa-loTmj6vN'
+# RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+# RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
 
 
 
@@ -118,7 +118,7 @@ class DetectThread(threading.Thread):
         for i, job in enumerate(jobs):
             while job.result is None:
                 time.sleep(1)
-                self.progress += 1
+                self.progress += 2
                 r.hset(self.sess_id, 'progress', self.progress)
             b, f, im, d, c = job.result
             self.base_faces.extend(b)
@@ -138,7 +138,7 @@ class DetectThread(threading.Thread):
             job = gpu.enqueue(recognize_listener, self.base_faces, self.filenames, self.dets, self.imgs, self.counts, self.img_map, self.sess_id)
             while job.result is None:
                 time.sleep(1)
-                self.progress += 0.5
+                self.progress += 1
                 r.hset(self.sess_id, 'progress', self.progress)
             filedets, filedims = job.result
         r.hset(self.sess_id, 'progress', 100)
@@ -187,7 +187,7 @@ class AttackThread(threading.Thread):
                     r.hset(self.sess_id, 'progress', self.progress)
                 else:
                     doneall = False
-                    self.progress += 0.05
+                    self.progress += 0.1
                     r.hset(self.sess_id, 'progress', self.progress)
             for i in remove:
                 jobs.remove(i)
@@ -198,7 +198,7 @@ class AttackThread(threading.Thread):
             if job.get_status() == 'finished':
                 done_imgs = job.result
                 done = True
-            self.progress += 0.05
+            self.progress += 0.1
             r.hset(self.sess_id, 'progress', self.progress)
 
         save_image(done_imgs=done_imgs,
@@ -417,7 +417,7 @@ def pre_proc_attack(attack, margin, amplification, selected, sess_id):
                                    margin=margin,
                                    amplification=amplification,
                                    mean_loss='embedding',
-                                   scale_flag='true')
+                                   scale_flag='false')
     people = load_images(params=params,
                          selected=selected,
                          sess_id=sess_id)
